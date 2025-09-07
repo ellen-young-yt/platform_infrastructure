@@ -1,0 +1,25 @@
+# Python dependencies for infrastructure development and tooling
+
+# Pre-commit hooks for code quality
+pre-commit>=3.6.0
+
+# Terraform tooling (Python-based tools)
+# Note: tflint itself is a Go binary, but we can manage it via pre-commit hooks
+checkov>=3.2.0  # Terraform security and compliance scanner
+
+# AWS CLI and boto3 for scripts
+boto3>=1.34.0
+botocore>=1.34.0
+
+# Development tools
+black>=24.0.0     # Python code formatter
+flake8>=7.0.0     # Python linter
+mypy>=1.8.0       # Python type checker
+
+# Documentation
+mkdocs>=1.5.0     # For generating documentation
+mkdocs-material>=9.5.0  # Material theme for mkdocs
+
+# Testing
+pytest>=8.0.0    # Python testing framework
+pytest-cov>=4.0.0  # Coverage plugin for pytest

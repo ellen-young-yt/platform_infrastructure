@@ -1,0 +1,115 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars.backup
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+terraform.rc
+
+# Python virtual environment
+venv/
+.venv/
+infra/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+NUL
+nul
+
+# AWS CLI cache
+.aws/
+
+# Secrets and keys
+*.pem
+*.key
+secrets.txt
+credentials.txt
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node.js (if any JavaScript tooling is added later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backup files
+*.backup
+*.bak
+
+# Lambda deployment packages
+*.zip
+
+# Terraform provider cache
+.terraform.d/
+
+# Pre-commit hooks
+.pre-commit-config.yaml.backup
+
+# Generated documentation
+README-GENERATED.md
+docs/generated/
+
+# Local configuration overrides
+terraform.tfvars
+*.auto.tfvars
+local.tfvars
+
+# Checkov reports
+checkov-report.*
+
+# Test artifacts
+.pytest_cache/
+.tox/
+
+# OS specific
+Thumbs.db:encryptable
