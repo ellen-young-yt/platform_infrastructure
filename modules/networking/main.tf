@@ -8,6 +8,75 @@ resource "aws_vpc" "main" {
   })
 }
 
+# CloudWatch log group for VPC Flow Logs
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs/${var.project_name}-${var.environment}"
+  retention_in_days = var.environment == "prod" ? 30 : 7
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-vpc-flow-logs"
+  })
+}
+
+# IAM role for VPC Flow Logs
+resource "aws_iam_role" "vpc_flow_logs" {
+  name        = "${var.project_name}-${var.environment}-vpc-flow-logs-role"
+  description = "IAM role for VPC Flow Logs to write to CloudWatch"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+# IAM policy for VPC Flow Logs
+resource "aws_iam_role_policy" "vpc_flow_logs" {
+  name = "${var.project_name}-${var.environment}-vpc-flow-logs-policy"
+  role = aws_iam_role.vpc_flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Effect = "Allow"
+        Resource = [
+          aws_cloudwatch_log_group.vpc_flow_logs.arn,
+          "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
+        ]
+      }
+    ]
+  })
+}
+
+# VPC Flow Logs
+resource "aws_flow_log" "vpc" {
+  iam_role_arn    = aws_iam_role.vpc_flow_logs.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_logs.arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.main.id
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-vpc-flow-logs"
+  })
+}
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
@@ -151,19 +220,19 @@ resource "aws_security_group" "alb" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP"
+    description = "HTTP from VPC only"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
   }
 
   ingress {
-    description = "HTTPS"
+    description = "HTTPS from VPC only"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
   }
 
   egress {

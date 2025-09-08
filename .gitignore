@@ -99,10 +99,9 @@ yarn-error.log*
 README-GENERATED.md
 docs/generated/
 
-# Local configuration overrides
-terraform.tfvars
-*.auto.tfvars
+# Local configuration overrides (keep environment tfvars in version control)
 local.tfvars
+*.local.tfvars
 
 # Checkov reports
 checkov-report.*
@@ -113,3 +112,11 @@ checkov-report.*
 
 # OS specific
 Thumbs.db:encryptable
+
+# Development scripts (contain sensitive credentials)
+dev-scripts/
+
+# Claude-specific files
+CLAUDE.md
+claude.md
+.claude/

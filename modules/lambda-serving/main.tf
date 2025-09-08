@@ -31,7 +31,7 @@ resource "aws_api_gateway_method" "predict_post" {
   rest_api_id      = aws_api_gateway_rest_api.ml_api.id
   resource_id      = aws_api_gateway_resource.predict.id
   http_method      = "POST"
-  authorization    = var.enable_api_key ? "NONE" : "NONE"
+  authorization    = "AWS_IAM"
   api_key_required = var.enable_api_key
 }
 
@@ -86,6 +86,19 @@ resource "aws_iam_role_policy" "lambda_s3_access" {
       {
         Effect = "Allow"
         Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "arn:aws:kms:*:*:key/*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = "s3.*.amazonaws.com"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "secretsmanager:GetSecretValue"
         ]
         Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/${var.environment}/*"
@@ -123,9 +136,10 @@ resource "aws_lambda_function" "model_predictor" {
 }
 
 resource "aws_security_group" "lambda" {
-  count       = length(var.private_subnet_ids) > 0 ? 1 : 0
-  name_prefix = "${var.project_name}-${var.environment}-lambda-"
-  vpc_id      = var.vpc_id
+  count                  = length(var.private_subnet_ids) > 0 ? 1 : 0
+  name_prefix            = "${var.project_name}-${var.environment}-lambda-"
+  vpc_id                 = var.vpc_id
+  revoke_rules_on_delete = true
 
   egress {
     from_port   = 0

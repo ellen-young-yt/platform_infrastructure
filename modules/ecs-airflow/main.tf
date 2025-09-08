@@ -89,6 +89,19 @@ resource "aws_iam_role_policy" "airflow_task" {
       {
         Effect = "Allow"
         Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "arn:aws:kms:*:*:key/*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = "s3.*.amazonaws.com"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "secretsmanager:GetSecretValue"
         ]
         Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/${var.environment}/*"

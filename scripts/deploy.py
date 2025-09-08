@@ -155,11 +155,10 @@ def main(argv: List[str]):
     auto = args.auto_approve
     extra = args.extra or []
 
-    # Determine paths (mimics your bash script layout)
+    # Determine paths (environment-named files in environments folder)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(script_dir)
-    env_dir = os.path.join(root_dir, "environments", env)
-    tfvars_file = args.tfvars_file or os.path.join(env_dir, "terraform.tfvars")
+    tfvars_file = args.tfvars_file or os.path.join(root_dir, "environments", f"{env}.tfvars")
 
     print(blue("=== Platform Infrastructure Deployment ==="))
     print(blue(f"Environment: {env}"))
@@ -171,21 +170,9 @@ def main(argv: List[str]):
     ensure_on_path("terraform")
     terraform_version()
     check_aws_identity()
-    if not os.path.isdir(env_dir):
-        die(f"Environment directory not found: {env_dir}")
     if not os.path.isfile(tfvars_file):
         die(f"Terraform variables file not found: {tfvars_file}")
     print(green("Environment files validated"))
-
-    # Show cost reminder only for apply (kept from your original script)
-    if action == "apply":
-        print(yellow("=== COST REMINDER ==="))
-        print(blue(f"Estimated daily cost for {env} environment: ~$2-4/day"))
-        print(blue("Major cost components:"))
-        print(blue("  - NAT Gateway: ~$1.50/day"))
-        print(blue("  - ECS Fargate: ~$0.40/day"))
-        print(blue("  - Other services: ~$0.20/day"))
-        print()
 
     # Initialize Terraform
     os.chdir(root_dir)
@@ -196,7 +183,6 @@ def main(argv: List[str]):
         terraform_plan(root_dir, tfvars_file, extra)
     elif action == "apply":
         terraform_apply(root_dir, tfvars_file, auto, extra)
-        print('BLOOP!')
     elif action == "destroy":
         terraform_destroy(root_dir, tfvars_file, auto, extra)
 

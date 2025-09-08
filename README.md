@@ -22,102 +22,46 @@ platform_infrastructure/
 ├── main.tf                    # Root configuration
 ├── variables.tf               # Root variables
 ├── outputs.tf                 # Root outputs
+├── Makefile                   # Cross-platform automation
+├── requirements.txt           # Python dependencies
+├── pyproject.toml             # Python tool configurations
+├── .pre-commit-config.yaml    # Code quality hooks
+├── .github/workflows/         # CI/CD pipelines
+│   └── pr-tests.yml
 ├── environments/              # Environment-specific configurations
-│   ├── dev/
-│   ├── staging/
-│   └── prod/
-└── modules/                   # Reusable modules
-    ├── networking/
-    ├── s3-data-lake/
-    ├── ecs-airflow/
-    ├── ecs-metabase/
-    ├── snowflake-integration/
-    ├── lambda-serving/
-    ├── monitoring/
-    └── secrets/
+│   ├── dev.tfvars            # Development environment variables
+│   ├── staging.tfvars        # Staging environment variables
+│   └── prod.tfvars           # Production environment variables
+├── modules/                   # Reusable modules
+│   ├── networking/
+│   ├── s3-data-lake/
+│   ├── ecs-airflow/
+│   ├── ecs-metabase/
+│   ├── snowflake-integration/
+│   ├── lambda-serving/
+│   ├── monitoring/
+│   └── secrets/
+├── scripts/                   # Cross-platform Python scripts
+│   ├── deploy.py             # Deployment automation
+│   ├── status.py             # Infrastructure status
+│   ├── validate.py           # Configuration validation
+│   └── manage_secrets.py     # Secrets management
+└── tests/                     # Test suite
+    ├── unit/                 # Unit tests (fast)
+    └── integration/          # Integration tests (slow)
 ```
 
-## Getting Started
-
-### Prerequisites
-
-1. AWS CLI configured with appropriate credentials
-2. Terraform >= 1.0 installed
-3. Appropriate IAM permissions for creating AWS resources
-
-### Deployment
-
-1. **Initialize Terraform:**
-   ```bash
-   terraform init
-   ```
-
-2. **Select workspace/environment:**
-   ```bash
-   terraform workspace new dev    # or staging/prod
-   ```
-
-3. **Plan deployment:**
-   ```bash
-   terraform plan -var-file="environments/dev/terraform.tfvars"
-   ```
-
-4. **Apply configuration:**
-   ```bash
-   terraform apply -var-file="environments/dev/terraform.tfvars"
-   ```
-
-### Environment Configuration
-
-Update the `terraform.tfvars` files in each environment directory with your specific values:
-
-- AWS region and availability zones
-- Project name and environment
-- Snowflake account information
-- Notification email addresses
-- PagerDuty integration keys
 
 ## Module Details
 
-### Networking Module
-- Creates VPC with public/private subnets across 3 AZs
-- Sets up NAT gateways for outbound internet access
-- Configures security groups for ECS and ALB
-
-### S3 Data Lake Module
-- Creates buckets for raw data, processed data, and artifacts
-- Implements lifecycle policies for cost optimization
-- Enables versioning and server-side encryption
-
-### ECS Airflow Module
-- Deploys Apache Airflow on ECS Fargate
-- Includes webserver and scheduler containers
-- Configures IAM roles for S3 and Secrets Manager access
-
-### ECS Metabase Module
-- Deploys Metabase on ECS Fargate with ALB
-- Includes health checks and auto-scaling configuration
-- Supports external database configuration
-
-### Snowflake Integration Module
-- Creates IAM roles for Snowflake to access S3
-- Sets up S3 stages for data loading
-- Manages Snowflake credentials in Secrets Manager
-
-### Lambda Serving Module
-- Creates API Gateway and Lambda for ML model serving
-- Supports model versioning and A/B testing
-- Includes throttling and API key authentication
-
-### Monitoring Module
-- Creates CloudWatch dashboards for key metrics
-- Sets up alarms for CPU, memory, errors, and latency
-- Integrates with SNS for notifications
-
-### Secrets Module
-- Manages application secrets in AWS Secrets Manager
-- Supports database credentials, API keys, and app config
-- Includes KMS encryption and rotation policies
+- **networking**: Creates VPC with public/private subnets, NAT gateways, and security groups across 3 AZs
+- **s3-data-lake**: Creates S3 buckets with lifecycle policies, versioning, and encryption for data storage
+- **ecs-airflow**: Deploys Apache Airflow webserver and scheduler on ECS Fargate with S3/Secrets access
+- **ecs-metabase**: Deploys Metabase on ECS Fargate with ALB, health checks, and auto-scaling
+- **snowflake-integration**: Creates IAM roles and S3 stages for Snowflake data loading with managed credentials
+- **lambda-serving**: Creates API Gateway and Lambda for ML model serving with throttling and authentication
+- **monitoring**: Creates CloudWatch dashboards, alarms, and SNS notifications for comprehensive observability
+- **secrets**: Manages application secrets in AWS Secrets Manager with KMS encryption and rotation
 
 ## Security Considerations
 
@@ -127,12 +71,6 @@ Update the `terraform.tfvars` files in each environment directory with your spec
 - KMS encryption is available for additional security
 - IAM roles use specific resource ARNs where possible
 
-## Cost Optimization
-
-- ECS services use Fargate Spot for cost savings
-- S3 lifecycle policies automatically transition data to cheaper storage classes
-- CloudWatch log retention is configured per environment
-- NAT gateways are only created where needed
 
 ## Monitoring and Alerting
 
@@ -144,38 +82,58 @@ The infrastructure includes comprehensive monitoring:
 - **Application Logs**: Error pattern matching and alerting
 - **Custom Dashboards**: Environment-specific views
 
-## Customization
+## Quick Deployment Guide
 
-To customize the infrastructure:
+### Development Environment Setup
 
-1. Modify variables in `terraform.tfvars` files
-2. Adjust module configurations in `main.tf`
-3. Add new modules to the `modules/` directory
-4. Update monitoring alarms and thresholds as needed
+1. **Setup development environment:**
+   ```bash
+   make setup
+   ```
 
-## Troubleshooting
+2. **Validate configuration:**
+   ```bash
+   make validate ENV=dev
+   ```
 
-Common issues and solutions:
+3. **Plan deployment:**
+   ```bash
+   make plan ENV=dev
+   ```
 
-1. **ECS tasks not starting**: Check security groups and subnet routing
-2. **Secrets not accessible**: Verify IAM role permissions
-3. **High costs**: Review resource sizing and lifecycle policies
-4. **Deployment failures**: Check AWS service limits and quotas
+4. **Deploy infrastructure:**
+   ```bash
+   make apply ENV=dev
+   ```
 
-## Next Steps
+5. **Check status:**
+   ```bash
+   make status ENV=dev
+   ```
 
-After deployment:
+6. **Destroy when done:**
+   ```bash
+   make destroy ENV=dev
+   ```
 
-1. Configure Airflow DAGs in the ECS cluster
-2. Set up Metabase data connections
-3. Create Snowflake external stages pointing to S3
-4. Deploy ML models to the Lambda serving infrastructure
-5. Configure additional monitoring and alerting as needed
+### Cross-Platform Scripts
 
-## Support
+All deployment operations work on both Windows and Linux via Python scripts:
 
-For issues and questions:
-- Check the AWS CloudWatch logs
-- Review Terraform state and plan output
-- Consult AWS documentation for specific services
-- Use AWS Support for account-specific issues
+- **Direct usage:** `python scripts/deploy.py <action> <environment>`
+- **Available actions:** `plan`, `apply`, `destroy`
+- **Auto-approve:** Add `--auto-approve` flag for automation
+
+### Testing and CI/CD
+
+- **Unit tests:** `make test-unit`
+- **Integration tests:** `make test-integration ENV=dev`
+- **All quality checks:** `make lint`
+- **GitHub Actions:** Automatic PR testing with security scans
+
+### Key Configuration Files
+
+- **environments/*.tfvars** - Environment-specific settings (AWS region, project name, Snowflake account, notification email)
+- **pyproject.toml** - Python tool configurations (pytest, black, mypy, coverage)
+- **requirements.txt** - Dependencies for development and deployment scripts
+- **.pre-commit-config.yaml** - Code quality hooks and security scanning

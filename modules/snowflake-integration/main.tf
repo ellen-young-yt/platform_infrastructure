@@ -40,6 +40,18 @@ resource "aws_iam_role_policy" "snowflake_s3_access" {
       {
         Effect = "Allow"
         Action = [
+          "kms:Decrypt"
+        ]
+        Resource = "arn:aws:kms:*:*:key/*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = "s3.*.amazonaws.com"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:PutObject",
           "s3:DeleteObject"
         ]

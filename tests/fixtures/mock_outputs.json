@@ -1,0 +1,50 @@
+{
+  "vpc_id": {
+    "value": "vpc-0123456789abcdef0",
+    "type": "string"
+  },
+  "vpc_cidr_block": {
+    "value": "10.0.0.0/16", 
+    "type": "string"
+  },
+  "private_subnet_ids": {
+    "value": [
+      "subnet-0123456789abcdef0",
+      "subnet-0123456789abcdef1", 
+      "subnet-0123456789abcdef2"
+    ],
+    "type": ["list", "string"]
+  },
+  "public_subnet_ids": {
+    "value": [
+      "subnet-0987654321fedcba0",
+      "subnet-0987654321fedcba1",
+      "subnet-0987654321fedcba2"
+    ],
+    "type": ["list", "string"]
+  },
+  "data_lake_bucket_id": {
+    "value": "ellen-young-yt-dev-data-lake",
+    "type": "string"
+  },
+  "data_lake_bucket_arn": {
+    "value": "arn:aws:s3:::ellen-young-yt-dev-data-lake",
+    "type": "string"
+  },
+  "api_gateway_url": {
+    "value": "https://abc123def4.execute-api.us-east-2.amazonaws.com/dev",
+    "type": "string"
+  },
+  "snowflake_role_arn": {
+    "value": "arn:aws:iam::123456789012:role/ellen-young-yt-dev-snowflake-role",
+    "type": "string"
+  },
+  "airflow_cluster_arn": {
+    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-airflow",
+    "type": "string"
+  },
+  "metabase_cluster_arn": {
+    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-metabase", 
+    "type": "string"
+  }
+}

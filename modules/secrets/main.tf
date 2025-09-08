@@ -2,101 +2,58 @@ resource "aws_secretsmanager_secret" "database_credentials" {
   name                    = "${var.project_name}/${var.environment}/database/credentials"
   description             = "Database credentials for ${var.environment} environment"
   recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
 
   tags = merge(var.tags, {
     Purpose = "Database credentials"
   })
 }
 
-resource "aws_secretsmanager_secret_version" "database_credentials" {
-  secret_id = aws_secretsmanager_secret.database_credentials.id
-  secret_string = jsonencode({
-    username = var.database_username
-    password = var.database_password
-    host     = var.database_host
-    port     = var.database_port
-    database = var.database_name
-    engine   = var.database_engine
-  })
 
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
 
 resource "aws_secretsmanager_secret" "redis_credentials" {
   name                    = "${var.project_name}/${var.environment}/redis/credentials"
   description             = "Redis credentials for ${var.environment} environment"
   recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
 
   tags = merge(var.tags, {
     Purpose = "Redis credentials"
   })
 }
 
-resource "aws_secretsmanager_secret_version" "redis_credentials" {
-  secret_id = aws_secretsmanager_secret.redis_credentials.id
-  secret_string = jsonencode({
-    host     = var.redis_host
-    port     = var.redis_port
-    password = var.redis_password
-    url      = "redis://${var.redis_password != "" ? ":${var.redis_password}@" : ""}${var.redis_host}:${var.redis_port}/0"
-  })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
 resource "aws_secretsmanager_secret" "api_keys" {
   name                    = "${var.project_name}/${var.environment}/api/keys"
   description             = "API keys and tokens for ${var.environment} environment"
   recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
 
   tags = merge(var.tags, {
     Purpose = "API keys"
   })
 }
 
-resource "aws_secretsmanager_secret_version" "api_keys" {
-  secret_id = aws_secretsmanager_secret.api_keys.id
-  secret_string = jsonencode({
-    openai_api_key    = var.openai_api_key
-    github_token      = var.github_token
-    slack_webhook_url = var.slack_webhook_url
-    datadog_api_key   = var.datadog_api_key
-    custom_api_keys   = var.custom_api_keys
-  })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
 resource "aws_secretsmanager_secret" "app_config" {
   name                    = "${var.project_name}/${var.environment}/app/config"
   description             = "Application configuration for ${var.environment} environment"
   recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
 
   tags = merge(var.tags, {
     Purpose = "Application configuration"
   })
 }
 
-resource "aws_secretsmanager_secret_version" "app_config" {
-  secret_id = aws_secretsmanager_secret.app_config.id
-  secret_string = jsonencode({
-    secret_key        = var.app_secret_key
-    jwt_secret        = var.jwt_secret
-    encryption_key    = var.encryption_key
-    session_secret    = var.session_secret
-    additional_config = var.additional_app_config
-  })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
+# Secret version will be managed outside of Terraform
+# Use AWS CLI or Console to set the secret value after deployment
+# Example structure for manual update:
+# {
+#   "secret_key": "your-secret-key-here",
+#   "jwt_secret": "your-jwt-secret-here", 
+#   "encryption_key": "your-encryption-key-here",
+#   "session_secret": "your-session-secret-here",
+#   "additional_config": {}
+# }
 
 resource "aws_iam_role" "secrets_access" {
   name = "${var.project_name}-${var.environment}-secrets-access-role"

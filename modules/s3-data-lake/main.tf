@@ -1,5 +1,21 @@
+# KMS key for S3 bucket encryption
+resource "aws_kms_key" "s3_encryption" {
+  description             = "KMS key for S3 bucket encryption"
+  deletion_window_in_days = var.environment == "prod" ? 30 : 7
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-s3-kms-key"
+  })
+}
+
+resource "aws_kms_alias" "s3_encryption" {
+  name          = "alias/${var.project_name}-${var.environment}-s3"
+  target_key_id = aws_kms_key.s3_encryption.key_id
+}
+
 resource "aws_s3_bucket" "data_lake" {
-  bucket = "${var.project_name}-${var.environment}-data-lake"
+  bucket        = "${var.project_name}-${var.environment}-data-lake"
+  force_destroy = var.environment == "dev" ? true : false
 
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-data-lake"
@@ -19,7 +35,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data_lake" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3_encryption.arn
     }
     bucket_key_enabled = true
   }
@@ -100,7 +117,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "processed" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3_encryption.arn
     }
     bucket_key_enabled = true
   }
@@ -136,7 +154,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3_encryption.arn
     }
     bucket_key_enabled = true
   }

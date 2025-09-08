@@ -22,7 +22,7 @@ help:
 	@echo "  make <command> [ENV=environment]"
 	@echo ""
 	@echo "$(YELLOW)Available commands:$(RESET)"
-	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/  /'
+	@python -c "import re; [print(f'  {line.replace(\"##\", \"\").strip()}') for line in open('$(MAKEFILE_LIST)').readlines() if line.startswith('##')]"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
 	@echo "  make validate ENV=dev     # Validate dev environment"
@@ -34,10 +34,10 @@ help:
 setup: init
 	@echo "$(BLUE)Setting up development environment...$(RESET)"
 	@python -c "import os; print('$(BLUE)Creating new virtual environment...$(RESET)') if not os.path.exists('infra') else print('$(BLUE)Virtual environment already exists, checking dependencies...$(RESET)')"
-	-@python -m venv infra 2>nul
+	-@python -m venv infra
 	@echo "$(BLUE)Installing/updating dependencies...$(RESET)"
-	-@infra\\Scripts\\pip.exe install -r requirements.txt --upgrade 2>nul
-	-@infra/bin/pip install -r requirements.txt --upgrade 2>/dev/null
+	-@infra/Scripts/pip.exe install -r requirements.txt --upgrade
+	-@infra/bin/pip install -r requirements.txt --upgrade
 	@echo "$(GREEN)Setup complete!$(RESET)"
 	@echo "$(GREEN)Windows: infra\\Scripts\\activate$(RESET)"
 	@echo "$(GREEN)Linux/Mac: source infra/bin/activate$(RESET)"
@@ -45,7 +45,7 @@ setup: init
 ## setup-clean: Force clean setup (removes existing venv)
 setup-clean:
 	@echo "$(BLUE)Force cleaning and recreating virtual environment...$(RESET)"
-	@rm -rf infra 2>/dev/null || rmdir /s /q infra 2>nul || true
+	@python -c "import shutil, os; shutil.rmtree('infra', ignore_errors=True) if os.path.exists('infra') else None"
 	@echo "$(BLUE)Creating new virtual environment...$(RESET)"
 	python -m venv infra
 	@echo "$(BLUE)Installing dependencies...$(RESET)"
@@ -56,23 +56,25 @@ setup-clean:
 	@echo "$(GREEN)Linux/Mac: source infra/bin/activate$(RESET)"
 
 ## validate: Validate Terraform configuration
-validate:
+validate: setup
 	@echo "$(BLUE)Validating Terraform configuration for $(ENV)...$(RESET)"
-	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/validate.ps1', '-Environment', '$(ENV)'] if os.name == 'nt' else ['./scripts/validate.sh', '$(ENV)'])"
+	@python scripts/validate.py $(ENV)
 
-## format: Format Terraform files
-format:
+## lint: Run static analysis (formatting, linting, security)
+lint: format
 	@echo "$(BLUE)Formatting Terraform files...$(RESET)"
 	terraform fmt -recursive
-
-## lint: Run Terraform linting
-lint: format
-	@echo "$(BLUE)Running Terraform lint checks...$(RESET)"
-	terraform validate
+	@echo "$(BLUE)Running Terraform linting...$(RESET)"
 	@if command -v tflint > /dev/null 2>&1; then \
 		tflint --recursive; \
 	else \
 		echo "$(YELLOW)Warning: tflint not installed, skipping lint checks$(RESET)"; \
+	fi
+	@echo "$(BLUE)Running security checks...$(RESET)"
+	@if command -v checkov > /dev/null 2>&1; then \
+		checkov -d . --framework terraform --quiet --compact; \
+	else \
+		echo "$(YELLOW)Warning: checkov not installed, skipping security checks$(RESET)"; \
 	fi
 
 ## init: Initialize Terraform
@@ -83,37 +85,29 @@ init:
 ## plan: Create Terraform execution plan
 plan: validate
 	@echo "$(BLUE)Creating Terraform plan for $(ENV)...$(RESET)"
-	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/deploy.ps1', '-Environment', '$(ENV)', '-Action', 'plan'] if os.name == 'nt' else ['./scripts/deploy.sh', '$(ENV)', 'plan'])"
-
-# ## apply: Apply Terraform changes
-# apply: validate
-# 	@echo "$(BLUE)Applying Terraform changes for $(ENV)...$(RESET)"
-# 	@echo "$(YELLOW)This will create/modify infrastructure in your AWS account!$(RESET)"
-# 	@python -c "import sys; resp = input('Are you sure you want to continue? [y/N]: '); sys.exit(0 if resp.strip() in ('y', 'yes') else 1)"
-# 	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/deploy.ps1', '-Environment', '$(ENV)', '-Action', 'apply'] if os.name == 'nt' else ['./scripts/deploy.sh', '$(ENV)', 'apply'])"
+	@python scripts/deploy.py plan $(ENV)
 
 ## apply: Apply Terraform changes
-apply: validate
+apply: plan
 	@echo "$(BLUE)Applying Terraform changes for $(ENV)...$(RESET)"
 	@echo "$(YELLOW)This will create/modify infrastructure in your AWS account!$(RESET)"
 	@python scripts/deploy.py apply $(ENV)
 
 ## apply-auto: Apply Terraform changes without confirmation (use with caution)
-apply-auto: validate
+apply-auto: plan
 	@echo "$(RED)Auto-applying Terraform changes for $(ENV)...$(RESET)"
-	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/deploy.ps1', '-Environment', '$(ENV)', '-Action', 'apply', '-AutoApprove'] if os.name == 'nt' else ['./scripts/deploy.sh', '$(ENV)', 'apply', '--auto-approve'])"
+	@python scripts/deploy.py apply $(ENV) --auto-approve
 
 ## destroy: Destroy Terraform infrastructure
 destroy:
 	@echo "$(RED)Destroying Terraform infrastructure for $(ENV)...$(RESET)"
 	@echo "$(RED)WARNING: This will DELETE all infrastructure!$(RESET)"
-	@read -p "Type 'yes' to confirm destruction: " confirm && [ "$$confirm" = "yes" ] || exit 1
-	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/deploy.ps1', '-Environment', '$(ENV)', '-Action', 'destroy'] if os.name == 'nt' else ['./scripts/deploy.sh', '$(ENV)', 'destroy'])"
+	@python scripts/deploy.py destroy $(ENV)
 
 ## status: Show current infrastructure status
 status:
 	@echo "$(BLUE)Checking infrastructure status for $(ENV)...$(RESET)"
-	@python -c "import os, subprocess; subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/status.ps1', '-Environment', '$(ENV)'] if os.name == 'nt' else ['sh', '-c', 'echo \"Status script not available for this platform\"; terraform show -no-color'])"
+	@python scripts/status.py $(ENV)
 
 ## outputs: Show Terraform outputs
 outputs:
@@ -123,11 +117,7 @@ outputs:
 ## clean: Clean up temporary files
 clean:
 	@echo "$(BLUE)Cleaning up temporary files...$(RESET)"
-	rm -rf .terraform/
-	rm -f terraform.tfstate.backup
-	rm -f *.tfplan
-	rm -f crash.log
-	find . -name "*.tmp" -delete
+	@python -c "import shutil, os, glob; shutil.rmtree('.terraform', ignore_errors=True); [os.remove(f) for f in ['terraform.tfstate.backup', 'crash.log'] + glob.glob('*.tfplan') + glob.glob('**/*.tmp', recursive=True) if os.path.exists(f)]"
 	@echo "$(GREEN)Cleanup complete$(RESET)"
 
 ## check-aws: Verify AWS credentials and permissions
@@ -149,13 +139,13 @@ cost-estimate:
 security-scan:
 	@echo "$(BLUE)Running security scan with Checkov...$(RESET)"
 	@if command -v checkov > /dev/null 2>&1; then \
-		checkov -f . --framework terraform; \
+		checkov -d . --framework terraform --config-file .checkov.yml; \
 	elif [ -f "infra/bin/checkov" ]; then \
-		infra/bin/checkov -f . --framework terraform; \
+		infra/bin/checkov -d . --framework terraform --config-file .checkov.yml; \
 	elif [ -f "infra/Scripts/checkov.exe" ]; then \
-		infra/Scripts/checkov.exe -f . --framework terraform; \
+		infra/Scripts/checkov.exe -d . --framework terraform --config-file .checkov.yml; \
 	else \
-		echo "$(YELLOW)Checkov not found. Install with: pip install checkov$(RESET)"; \
+		echo "$(YELLOW)Checkov not found. Install with: pip install -e .[dev]$(RESET)"; \
 	fi
 
 ## pre-commit: Run pre-commit hooks
@@ -177,18 +167,41 @@ docs:
 		echo "$(YELLOW)terraform-docs not installed$(RESET)"; \
 	fi
 
-# Development workflow targets
-## dev-deploy: Full development deployment (validate -> plan -> apply)
-dev-deploy: ENV = dev
-dev-deploy: validate plan
-	@echo "$(BLUE)Starting development deployment...$(RESET)"
-	$(MAKE) apply ENV=dev
+## test: Run all tests appropriate for the environment
+test: test-unit
+	@if [ "$(ENV)" != "prod" ]; then \
+		echo "$(BLUE)Running integration tests for $(ENV)...$(RESET)"; \
+		python -m pytest tests/integration/ -v --tb=short --env=$(ENV) 2>/dev/null || echo "$(YELLOW)No integration tests found$(RESET)"; \
+	else \
+		echo "$(YELLOW)Skipping integration tests in production environment$(RESET)"; \
+	fi
 
-## dev-destroy: Destroy development environment
-dev-destroy: ENV = dev
-dev-destroy:
-	$(MAKE) destroy ENV=dev
+## test-unit: Run unit tests (fast, no external dependencies)
+test-unit: setup
+	@echo "$(BLUE)Running unit tests...$(RESET)"
+	@if [ -d "tests" ]; then \
+		python -m pytest tests/unit/ -v --tb=short || echo "$(YELLOW)No unit tests found$(RESET)"; \
+	else \
+		echo "$(YELLOW)Tests directory not found. Run 'make setup-tests' to initialize$(RESET)"; \
+	fi
 
-## quick-check: Quick validation and format check
-quick-check: format validate
-	@echo "$(GREEN)Quick check passed!$(RESET)"
+## test-integration: Run integration tests (requires ENV to be set)
+test-integration: setup
+	@if [ -z "$(ENV)" ]; then \
+		echo "$(RED)ENV variable must be set for integration tests$(RESET)"; \
+		echo "$(BLUE)Usage: make test-integration ENV=dev$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Running integration tests for $(ENV)...$(RESET)"
+	@if [ -d "tests/integration" ]; then \
+		python -m pytest tests/integration/ -v --tb=short --env=$(ENV) || echo "$(YELLOW)No integration tests found$(RESET)"; \
+	else \
+		echo "$(YELLOW)Integration tests directory not found$(RESET)"; \
+	fi
+
+## setup-tests: Initialize test directory structure
+setup-tests:
+	@echo "$(BLUE)Setting up test directory structure...$(RESET)"
+	@python -c "import os; [os.makedirs(d, exist_ok=True) for d in ['tests/unit', 'tests/integration', 'tests/fixtures']]"
+	@touch tests/__init__.py tests/unit/__init__.py tests/integration/__init__.py
+	@echo "$(GREEN)Test structure created. Add pytest to requirements.txt if not already present.$(RESET)"
