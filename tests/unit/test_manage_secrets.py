@@ -169,7 +169,8 @@ class TestSecretsManager:
 
             result = secrets_manager.get_secret("database/credentials")
 
-            assert result == {}
+            assert "error" in result
+            assert "Secret not found" in result["error"]
 
     def test_list_secrets_success(self, test_project_name, test_environment, mock_aws_region):
         """Test successful secrets listing."""

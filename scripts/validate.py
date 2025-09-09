@@ -28,23 +28,23 @@ class Colors:
     RESET = "\033[0m"
 
 
-def print_success(message: str):
+def print_success(message: str) -> None:
     print(f"{Colors.GREEN}[SUCCESS]{Colors.RESET} {message}")
 
 
-def print_error(message: str):
+def print_error(message: str) -> None:
     print(f"{Colors.RED}[ERROR]{Colors.RESET} {message}")
 
 
-def print_warning(message: str):
+def print_warning(message: str) -> None:
     print(f"{Colors.YELLOW}[WARNING]{Colors.RESET} {message}")
 
 
-def print_info(message: str):
+def print_info(message: str) -> None:
     print(f"{Colors.CYAN}[INFO]{Colors.RESET} {message}")
 
 
-def print_step(message: str):
+def print_step(message: str) -> None:
     print(f"{Colors.BLUE}[STEP]{Colors.RESET} {message}")
 
 
@@ -55,7 +55,7 @@ class TerraformValidator:
         self.root_dir = self.script_dir.parent
         self.tfvars_file = self.root_dir / "environments" / f"{environment}.tfvars"
 
-    def run_command(self, cmd: List[str], cwd: Path = None) -> Tuple[bool, str, str]:
+    def run_command(self, cmd: List[str], cwd: Path | None = None) -> Tuple[bool, str, str]:
         """Run a command and return success, stdout, stderr"""
         try:
             result = subprocess.run(
@@ -165,7 +165,7 @@ class TerraformValidator:
             print_error("Could not parse AWS identity response")
             return False
 
-    def show_cost_estimate(self):
+    def show_cost_estimate(self) -> None:
         """Show cost estimate"""
         print_step("Showing cost estimate...")
 
@@ -245,7 +245,7 @@ class TerraformValidator:
             return False
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Validate Terraform configuration")
     parser.add_argument(
         "environment",

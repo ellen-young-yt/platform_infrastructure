@@ -25,7 +25,7 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Any
 
 
 # ---- Colors (simple)
@@ -59,7 +59,7 @@ def run_check(
     capture: bool = False,
     text: bool = True,
     check: bool = True,
-):
+) -> Any:
     """Run a command. If capture=True, return CompletedProcess,
     else return returncode."""
     if capture:
@@ -68,18 +68,18 @@ def run_check(
         return subprocess.call(cmd)
 
 
-def die(msg: str, code: int = 1):
+def die(msg: str, code: int = 1) -> None:
     print(red(msg), file=sys.stderr)
     sys.exit(code)
 
 
 # ---- Validations
-def ensure_on_path(name: str):
+def ensure_on_path(name: str) -> None:
     if shutil.which(name) is None:
         die(f"{name} not found in PATH. Please install {name} and add it to PATH.")
 
 
-def check_aws_identity():
+def check_aws_identity() -> None:
     try:
         cp = run_check(["aws", "sts", "get-caller-identity"], capture=True)
         out = cp.stdout
@@ -93,7 +93,7 @@ def check_aws_identity():
         die(f"Failed to parse AWS identity: {e}")
 
 
-def terraform_version():
+def terraform_version() -> None:
     try:
         cp = run_check(["terraform", "version", "-json"], capture=True)
         j = json.loads(cp.stdout)
@@ -110,7 +110,7 @@ def terraform_version():
 
 
 # ---- Main actions
-def terraform_init(root_dir: str):
+def terraform_init(root_dir: str) -> None:
     print(cyan("Initializing Terraform..."))
     rc = run_check(["terraform", "init", "-input=false"], capture=False)
     if rc != 0:
@@ -118,7 +118,7 @@ def terraform_init(root_dir: str):
     print(green("Terraform initialized successfully"))
 
 
-def terraform_plan(root_dir: str, tfvars: str, extra_args: List[str]):
+def terraform_plan(root_dir: str, tfvars: str, extra_args: List[str]) -> None:
     print(cyan("Creating Terraform plan..."))
     cmd = [
         "terraform",
@@ -133,7 +133,7 @@ def terraform_plan(root_dir: str, tfvars: str, extra_args: List[str]):
     print(green("Terraform plan completed successfully"))
 
 
-def terraform_apply(root_dir: str, tfvars: str, auto: bool, extra_args: List[str]):
+def terraform_apply(root_dir: str, tfvars: str, auto: bool, extra_args: List[str]) -> None:
     print(cyan("Applying Terraform configuration..."))
     if auto:
         print(yellow("Auto-approve enabled - applying without confirmation"))
@@ -155,7 +155,7 @@ def terraform_apply(root_dir: str, tfvars: str, auto: bool, extra_args: List[str
         print(yellow(f"Could not parse terraform outputs: {e}"))
 
 
-def terraform_destroy(root_dir: str, tfvars: str, auto: bool, extra_args: List[str]):
+def terraform_destroy(root_dir: str, tfvars: str, auto: bool, extra_args: List[str]) -> None:
     print(yellow("This will destroy ALL infrastructure in the environment!"))
     if not auto:
         resp = input(
@@ -176,7 +176,7 @@ def terraform_destroy(root_dir: str, tfvars: str, auto: bool, extra_args: List[s
 
 
 # ---- Entrypoint
-def main(argv: List[str]):
+def main(argv: List[str]) -> int:
     p = argparse.ArgumentParser(description="Cross-platform Terraform deploy launcher")
     p.add_argument("action", choices=["plan", "apply", "destroy"])
     p.add_argument("environment")
@@ -243,6 +243,7 @@ def main(argv: List[str]):
         print(blue(f"To destroy resources later: python scripts/deploy.py destroy {env}"))
 
     print(green("Script completed successfully!"))
+    return 0
 
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ class SecretsManager:
         port: int = 5432,
         database: str = "postgres",
         engine: str = "postgres",
-    ):
+    ) -> bool:
         """Set database credentials"""
         secret_name = self._get_secret_name("database/credentials")
         secret_value = {
@@ -88,7 +88,7 @@ class SecretsManager:
         github_token: str = "",
         slack_webhook_url: str = "",
         datadog_api_key: str = "",
-    ):
+    ) -> bool:
         """Set API keys and tokens"""
         secret_name = self._get_secret_name("api/keys")
         secret_value = {
@@ -118,7 +118,7 @@ class SecretsManager:
         jwt_secret: str,
         encryption_key: str,
         session_secret: str,
-    ):
+    ) -> bool:
         """Set application configuration secrets"""
         secret_name = self._get_secret_name("app/config")
         secret_value = {
@@ -145,12 +145,13 @@ class SecretsManager:
 
         try:
             response = self.client.get_secret_value(SecretId=secret_name)
-            return json.loads(response["SecretString"])
+            result = json.loads(response["SecretString"])
+            return result if isinstance(result, dict) else {"error": "Invalid secret format"}
         except Exception as e:
             print(f"[ERROR] Error getting secret {secret_name}: {e}")
-            return {}
+            return {"error": str(e)}
 
-    def list_secrets(self):
+    def list_secrets(self) -> None:
         """List all secrets for this project/environment"""
         prefix = f"{self.project_name}/{self.environment}/"
 
@@ -167,7 +168,7 @@ class SecretsManager:
             print(f"[ERROR] Error listing secrets: {e}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Manage AWS Secrets Manager secrets")
     parser.add_argument("--project", required=True, help="Project name")
     parser.add_argument("--env", required=True, help="Environment (dev/staging/prod)")

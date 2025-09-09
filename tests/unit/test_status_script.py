@@ -139,7 +139,8 @@ class TestInfrastructureStatus:
 
         result = status.get_terraform_outputs()
 
-        assert result is None
+        assert "error" in result
+        assert "outputs failed" in result["error"]
 
     @patch("status.InfrastructureStatus.run_command")
     def test_get_terraform_outputs_invalid_json(self, mock_run_command, test_environment):
@@ -150,7 +151,7 @@ class TestInfrastructureStatus:
 
         result = status.get_terraform_outputs()
 
-        assert result is None
+        assert "error" in result
 
     def test_show_access_information_empty(self, test_environment):
         """Test show_access_information with no outputs."""

@@ -29,23 +29,23 @@ class Colors:
     RESET = "\033[0m"
 
 
-def print_success(message: str):
+def print_success(message: str) -> None:
     print(f"{Colors.GREEN}[SUCCESS]{Colors.RESET} {message}")
 
 
-def print_error(message: str):
+def print_error(message: str) -> None:
     print(f"{Colors.RED}[ERROR]{Colors.RESET} {message}")
 
 
-def print_warning(message: str):
+def print_warning(message: str) -> None:
     print(f"{Colors.YELLOW}[WARNING]{Colors.RESET} {message}")
 
 
-def print_info(message: str):
+def print_info(message: str) -> None:
     print(f"{Colors.CYAN}[INFO]{Colors.RESET} {message}")
 
 
-def print_step(message: str):
+def print_step(message: str) -> None:
     print(f"{Colors.BLUE}[STEP]{Colors.RESET} {message}")
 
 
@@ -56,7 +56,7 @@ class InfrastructureStatus:
         self.root_dir = self.script_dir.parent
         self.tfvars_file = self.root_dir / f"{environment}.tfvars"
 
-    def run_command(self, cmd: List[str], cwd: Path = None) -> Tuple[bool, str, str]:
+    def run_command(self, cmd: List[str], cwd: Path | None = None) -> Tuple[bool, str, str]:
         """Run a command and return success, stdout, stderr"""
         try:
             result = subprocess.run(
@@ -92,7 +92,7 @@ class InfrastructureStatus:
         resources = [line.strip() for line in stdout.strip().split("\n") if line.strip()]
         return resources
 
-    def show_resource_counts(self, resources: List[str]):
+    def show_resource_counts(self, resources: List[str]) -> None:
         """Show summary of resource counts by type"""
         if not resources:
             print_warning("No resources found")
@@ -114,7 +114,7 @@ class InfrastructureStatus:
 
         print_info(f"  Total resources: {len(resources)}")
 
-    def get_terraform_outputs(self) -> Optional[Dict[str, Any]]:
+    def get_terraform_outputs(self) -> Dict[str, Any]:
         """Get Terraform outputs"""
         print_step("Getting Terraform outputs...")
 
@@ -124,17 +124,18 @@ class InfrastructureStatus:
             print_warning("Could not get Terraform outputs")
             if stderr:
                 print_warning(f"Error: {stderr}")
-            return None
+            return {"error": stderr or "Could not get Terraform outputs"}
 
         try:
-            return json.loads(stdout)
+            result = json.loads(stdout)
+            return result if isinstance(result, dict) else {}
         except json.JSONDecodeError as e:
             print_warning(f"Could not parse Terraform outputs: {e}")
-            return None
+            return {"error": str(e)}
 
-    def show_access_information(self, outputs: Dict[str, Any]):
+    def show_access_information(self, outputs: Dict[str, Any]) -> None:
         """Show access information from outputs"""
-        if not outputs:
+        if not outputs or "error" in outputs:
             print_warning("No outputs available")
             return
 
@@ -153,7 +154,7 @@ class InfrastructureStatus:
                 else:
                     print_info(f"  {key}: {value}")
 
-    def show_cost_estimate(self):
+    def show_cost_estimate(self) -> None:
         """Show current cost estimate"""
         print_step("Current cost estimate...")
 
@@ -166,7 +167,7 @@ class InfrastructureStatus:
         print()
         print_warning("Remember to destroy resources when not needed!")
 
-    def show_quick_commands(self):
+    def show_quick_commands(self) -> None:
         """Show helpful commands"""
         print_step("Quick commands:")
 
@@ -180,7 +181,7 @@ class InfrastructureStatus:
             print_info("Access Metabase (dev): Use ECS port forwarding (see outputs)")
             print_info("Access Airflow: Check ECS service in AWS Console")
 
-    def show_status(self):
+    def show_status(self) -> None:
         """Show complete infrastructure status"""
         print_info("=== Infrastructure Status ===")
         print_info(f"Environment: {self.environment}")
@@ -210,7 +211,7 @@ class InfrastructureStatus:
         self.show_quick_commands()
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Show infrastructure status")
     parser.add_argument(
         "environment",
