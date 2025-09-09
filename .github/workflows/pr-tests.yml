@@ -68,9 +68,6 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan (validation only)
-        run: |
-          terraform plan -var-file=environments/dev.tfvars -input=false -detailed-exitcode
 
       - name: Set up Python for Checkov
         uses: actions/setup-python@v5
@@ -190,6 +187,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup Terraform
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+
       - name: Configure AWS credentials (if available)
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
         uses: aws-actions/configure-aws-credentials@v4
@@ -197,6 +200,12 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
+
+      - name: Terraform Plan (with AWS credentials)
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        run: |
+          terraform init -backend=false
+          terraform plan -var-file=environments/dev.tfvars -input=false -detailed-exitcode
 
       - name: Run integration tests
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
