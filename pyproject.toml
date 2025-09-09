@@ -24,7 +24,7 @@ filterwarnings = [
 ]
 
 [tool.black]
-line-length = 88
+line-length = 100
 target-version = ["py38"]
 include = '\.pyi?$'
 extend-exclude = '''
@@ -40,6 +40,20 @@ extend-exclude = '''
   | dist
 )/
 '''
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "infra/",
+    "dev-scripts/",
+]
 
 [tool.mypy]
 python_version = "3.8"
