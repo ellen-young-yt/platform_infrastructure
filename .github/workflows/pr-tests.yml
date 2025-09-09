@@ -99,6 +99,7 @@ jobs:
 
       - name: Terraform Lint (TFLint)
         run: |
+          tflint --init
           tflint --only=terraform_deprecated_interpolation \
                  --only=terraform_deprecated_index \
                  --only=terraform_unused_declarations \
