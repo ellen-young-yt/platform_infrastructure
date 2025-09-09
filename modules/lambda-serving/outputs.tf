@@ -1,6 +1,6 @@
 output "api_gateway_url" {
   description = "URL of the API Gateway"
-  value       = aws_api_gateway_deployment.ml_api.invoke_url
+  value       = aws_api_gateway_stage.ml_api.invoke_url
 }
 
 output "api_gateway_id" {
@@ -35,5 +35,5 @@ output "api_key_id" {
 
 output "api_endpoint_example" {
   description = "Example API endpoint URL"
-  value       = "${aws_api_gateway_deployment.ml_api.invoke_url}/models/{model_name}/predict"
+  value       = "${aws_api_gateway_stage.ml_api.invoke_url}/models/{model_name}/predict"
 }

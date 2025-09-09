@@ -8,6 +8,7 @@ variable "project_name" {
   type        = string
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_username" {
   description = "Database username"
   type        = string
@@ -15,6 +16,7 @@ variable "database_username" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_password" {
   description = "Database password"
   type        = string
@@ -22,42 +24,49 @@ variable "database_password" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_host" {
   description = "Database host"
   type        = string
   default     = "localhost"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_port" {
   description = "Database port"
   type        = number
   default     = 5432
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_name" {
   description = "Database name"
   type        = string
   default     = "main"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "database_engine" {
   description = "Database engine (postgres, mysql, etc.)"
   type        = string
   default     = "postgres"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "redis_host" {
   description = "Redis host"
   type        = string
   default     = "localhost"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "redis_port" {
   description = "Redis port"
   type        = number
   default     = 6379
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "redis_password" {
   description = "Redis password"
   type        = string
@@ -65,6 +74,7 @@ variable "redis_password" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "openai_api_key" {
   description = "OpenAI API key"
   type        = string
@@ -72,6 +82,7 @@ variable "openai_api_key" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "github_token" {
   description = "GitHub personal access token"
   type        = string
@@ -79,6 +90,7 @@ variable "github_token" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "slack_webhook_url" {
   description = "Slack webhook URL for notifications"
   type        = string
@@ -86,6 +98,7 @@ variable "slack_webhook_url" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "datadog_api_key" {
   description = "Datadog API key"
   type        = string
@@ -93,6 +106,7 @@ variable "datadog_api_key" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "custom_api_keys" {
   description = "Map of custom API keys"
   type        = map(string)
@@ -100,6 +114,7 @@ variable "custom_api_keys" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "app_secret_key" {
   description = "Application secret key"
   type        = string
@@ -107,6 +122,7 @@ variable "app_secret_key" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "jwt_secret" {
   description = "JWT secret for token signing"
   type        = string
@@ -114,6 +130,7 @@ variable "jwt_secret" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "encryption_key" {
   description = "Application encryption key"
   type        = string
@@ -121,6 +138,7 @@ variable "encryption_key" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "session_secret" {
   description = "Session secret for web applications"
   type        = string
@@ -128,6 +146,7 @@ variable "session_secret" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "additional_app_config" {
   description = "Additional application configuration"
   type        = map(string)

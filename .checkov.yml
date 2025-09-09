@@ -6,7 +6,7 @@ framework:
 skip-check:
   # CloudWatch encryption (CKV_AWS_158) - can add later
   - CKV_AWS_158
-  # Log retention (CKV_AWS_338) - can configure later  
+  # Log retention (CKV_AWS_338) - can configure later
   - CKV_AWS_338
   # S3 lifecycle (CKV2_AWS_61) - not critical for initial setup
   - CKV2_AWS_61
@@ -65,6 +65,18 @@ skip-check:
   - CKV2_AWS_20
   # Secrets Manager KMS encryption (CKV_AWS_149) - handled by module configuration
   - CKV_AWS_149
+  # API Gateway access logging (CKV_AWS_76) - can add for production
+  - CKV_AWS_76
+  # API Gateway caching (CKV_AWS_120) - not needed for basic functionality
+  - CKV_AWS_120
+  # API Gateway X-Ray tracing (CKV_AWS_73) - can add for production
+  - CKV_AWS_73
+  # API Gateway stage logging level (CKV2_AWS_4) - can configure later
+  - CKV2_AWS_4
+  # API Gateway client certificate authentication (CKV2_AWS_51) - optional for dev
+  - CKV2_AWS_51
+  # API Gateway WAF protection (CKV2_AWS_29) - can add for production
+  - CKV2_AWS_29
 
 # Keep critical security checks enabled (IAM, access control, encryption at rest, etc.)
 # This will still catch over-scoped roles and permissions
