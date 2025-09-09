@@ -62,10 +62,12 @@ jobs:
         with:
           terraform_version: '1.9.8'
 
-      - name: Setup terraform-docs
-        uses: lablabs/setup-terraform-docs@v1
-        with:
-          terraform_docs_version: latest
+      - name: Install terraform-docs
+        run: |
+          curl -Lo terraform-docs.tar.gz https://github.com/terraform-docs/terraform-docs/releases/download/v0.17.0/terraform-docs-v0.17.0-$(uname)-amd64.tar.gz
+          tar -xzf terraform-docs.tar.gz
+          chmod +x terraform-docs
+          sudo mv terraform-docs /usr/local/bin/terraform-docs
 
       - name: Setup tflint
         uses: terraform-linters/setup-tflint@v4
