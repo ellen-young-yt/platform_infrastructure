@@ -97,7 +97,7 @@ class TestInfrastructureState:
             assert "AssumeRolePolicyDocument" in response["Role"]
 
             # Check that assume role policy allows Snowflake
-            assume_policy = json.loads(response["Role"]["AssumeRolePolicyDocument"])
+            assume_policy = response["Role"]["AssumeRolePolicyDocument"]
             statements = assume_policy.get("Statement", [])
 
             snowflake_principal_found = False
