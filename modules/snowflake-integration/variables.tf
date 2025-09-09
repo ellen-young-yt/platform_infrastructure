@@ -20,9 +20,9 @@ variable "data_lake_bucket_arn" {
 
 # tflint-ignore: terraform_unused_declarations
 variable "snowflake_account_id" {
-  description = "AWS account ID for Snowflake (official Snowflake AWS account)"
+  description = "AWS account ID for Snowflake"
   type        = string
-  default     = "179819430825" # Official Snowflake AWS account ID for us-east-2
+  default     = "703671920640"
 }
 
 # tflint-ignore: terraform_unused_declarations

@@ -108,10 +108,7 @@ class TestInfrastructureState:
                     if isinstance(aws_principals, str):
                         aws_principals = [aws_principals]
                     # Look for Snowflake account in principals
-                    if any(
-                        "snowflake" in principal.lower() or "QHAQNPB-NO48574" in principal
-                        for principal in aws_principals
-                    ):
+                    if any("703671920640" in principal for principal in aws_principals):
                         snowflake_principal_found = True
                         break
 
