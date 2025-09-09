@@ -71,7 +71,6 @@ jobs:
       - name: Terraform Plan (validation only)
         run: |
           terraform plan -var-file=environments/dev.tfvars -input=false -detailed-exitcode
-        continue-on-error: true
 
       - name: Set up Python for Checkov
         uses: actions/setup-python@v5
@@ -79,16 +78,19 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Checkov
-        run: pip install checkov>=3.2.0
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run Checkov Security Scan
+      - name: Run Checkov Security Scan (comprehensive)
         run: |
           checkov -d . \
             --framework terraform \
             --quiet \
             --compact \
-            --exit-code-if-findings
+            --output-format cli \
+            --download-external-modules true
 
   # Unit tests (fast, no AWS dependencies)
   unit-tests:
@@ -119,8 +121,7 @@ jobs:
             --tb=short \
             --cov=scripts \
             --cov-report=xml \
-            --cov-report=term-missing \
-            -m "unit"
+            --cov-report=term-missing
 
   # Pre-commit hooks validation
   pre-commit:
@@ -138,6 +139,12 @@ jobs:
 
       - name: Install pre-commit
         run: pip install pre-commit
+
+      - name: Install terraform-docs
+        uses: terraform-docs/gh-actions@v1.0.0
+
+      - name: Install tflint
+        uses: terraform-linters/setup-tflint@v4
 
       - name: Cache pre-commit environments
         uses: actions/cache@v4

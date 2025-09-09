@@ -39,9 +39,9 @@ repos:
     rev: '3.2.469'
     hooks:
       - id: checkov
-        name: Checkov security scan
-        description: Runs checkov on Terraform files
-        args: [--framework, terraform]
+        name: Checkov security scan (changed files)
+        description: Fast security scan on changed Terraform files
+        args: [--framework, terraform, --quiet, --compact]
         files: \.tf$
         # Skip some checks that might be too strict for learning environment
         exclude: |
@@ -102,6 +102,15 @@ repos:
         files: \.py$
         exclude: ^(infra/|dev-scripts/).*
         args: [--max-line-length=100]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        name: MyPy type checker
+        description: Static type checker for Python
+        files: ^scripts/.*\.py$
+        args: [--ignore-missing-imports]
 
 default_stages: [commit, push]
 default_install_hook_types: [pre-commit, pre-push]

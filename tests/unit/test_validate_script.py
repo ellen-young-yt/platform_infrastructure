@@ -21,7 +21,7 @@ class TestTerraformValidator:
         assert validator.root_dir == Path(__file__).parent.parent.parent
         assert (
             validator.tfvars_file
-            == Path(__file__).parent.parent.parent / f"{test_environment}.tfvars"
+            == Path(__file__).parent.parent.parent / "environments" / f"{test_environment}.tfvars"
         )
 
     def test_run_command_success(self, test_environment):
