@@ -2,7 +2,7 @@ name: Pull Request Tests
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, staging, develop ]
     paths:
       - '**/*.py'
       - '**/*.tf'
@@ -11,6 +11,7 @@ on:
       - 'requirements.txt'
       - 'pyproject.toml'
       - '.pre-commit-config.yaml'
+      - 'environments/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -56,7 +57,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '~1.0'
+          terraform_version: '1.9.8'
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -67,8 +68,13 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform Plan (validation only)
+        run: |
+          terraform plan -var-file=environments/dev.tfvars -input=false -detailed-exitcode
+        continue-on-error: true
+
       - name: Set up Python for Checkov
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -96,7 +102,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -125,7 +131,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -134,7 +140,7 @@ jobs:
         run: pip install pre-commit
 
       - name: Cache pre-commit environments
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -163,7 +169,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
