@@ -1,0 +1,6 @@
+# Act configuration for local GitHub Actions testing
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-architecture linux/amd64
+--use-gitignore=true
+--bind
+--artifact-server-path /tmp/artifacts

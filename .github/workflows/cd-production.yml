@@ -1,0 +1,290 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - 'environments/**'
+  workflow_dispatch:
+    inputs:
+      force_apply:
+        description: 'Force apply even if no changes detected'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  # Pre-deployment validation
+  validate-production:
+    name: Validate Production Configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      has_changes: ${{ env.HAS_CHANGES }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          # Use the exact path from setup-terraform action
+          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
+          terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var-file=environments/prod.tfvars \
+            -input=false \
+            -detailed-exitcode \
+            -out=prod.tfplan
+        continue-on-error: true
+
+      - name: Check Plan Status
+        run: |
+          if [ ${{ steps.plan.outputs.exitcode }} -eq 1 ]; then
+            echo "❌ Terraform plan failed"
+            exit 1
+          elif [ ${{ steps.plan.outputs.exitcode }} -eq 0 ]; then
+            echo "✅ No changes detected"
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          elif [ ${{ steps.plan.outputs.exitcode }} -eq 2 ]; then
+            echo "📋 Changes detected and plan succeeded"
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Display Plan Summary
+        if: env.HAS_CHANGES == 'true'
+        run: |
+          echo "## 📋 Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color prod.tfplan >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Plan Artifact
+        if: env.HAS_CHANGES == 'true' || github.event.inputs.force_apply == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-tfplan
+          path: prod.tfplan
+          retention-days: 1
+
+  # Security scan for production deployment
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Checkov Security Scan (production-focused)
+        run: |
+          checkov -d . \
+            --framework terraform \
+            --quiet \
+            --compact \
+            --download-external-modules true
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [validate-production, security-scan]
+    if: needs.validate-production.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
+    environment:
+      name: production
+      url: ${{ steps.outputs.outputs.monitoring_dashboard_url }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Plan Artifact
+        if: needs.validate-production.outputs.has_changes == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-tfplan
+
+      - name: Terraform Init
+        run: |
+          # Use the exact path from setup-terraform action
+          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
+          terraform init
+
+      - name: Terraform Apply
+        id: apply
+        run: |
+          if [ -f "prod.tfplan" ]; then
+            echo "🚀 Applying planned changes to production..."
+            terraform apply -input=false prod.tfplan
+          elif [ "${{ github.event.inputs.force_apply }}" == "true" ]; then
+            echo "⚠️  Force applying to production..."
+            terraform apply -var-file=environments/prod.tfvars -input=false -auto-approve
+          else
+            echo "❌ No plan file found and force apply not requested"
+            exit 1
+          fi
+
+      - name: Capture Terraform Outputs
+        id: outputs
+        run: |
+          echo "monitoring_dashboard_url=$(terraform output -raw monitoring_dashboard_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+          echo "api_gateway_url=$(terraform output -raw api_gateway_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+          echo "data_lake_bucket_arn=$(terraform output -raw data_lake_bucket_arn 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
+
+      - name: Post-deployment Notification
+        run: |
+          echo "## 🚀 Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | URL/ARN |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Monitoring Dashboard | ${{ steps.outputs.outputs.monitoring_dashboard_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔗 API Gateway | ${{ steps.outputs.outputs.api_gateway_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🗄️  Data Lake Bucket | ${{ steps.outputs.outputs.data_lake_bucket_arn }} |" >> $GITHUB_STEP_SUMMARY
+
+  # Post-deployment validation
+  post-deployment-tests:
+    name: Post-Deployment Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [deploy-production]
+    if: needs.deploy-production.result == 'success'
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run production integration tests
+        run: |
+          pytest tests/integration/ \
+            -v \
+            --tb=short \
+            -m "integration and not slow" \
+            --maxfail=1
+        env:
+          ENV: prod
+
+      - name: Deployment Success Summary
+        if: success()
+        run: |
+          echo "## ✅ Deployment Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️  Infrastructure is ready for production workloads" >> $GITHUB_STEP_SUMMARY
+          echo "- 📈 Post-deployment tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 Deployment completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment Failure Alert
+        if: failure()
+        run: |
+          echo "## 🚨 Production Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Post-deployment validation failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- Check the test logs above for specific failures" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify production infrastructure health" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider rollback if infrastructure is unstable" >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+  # Global failure notification job
+  notify-failure:
+    name: Notify Deployment Failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [validate-production, security-scan, deploy-production, post-deployment-tests]
+    if: always() && (needs.validate-production.result == 'failure' || needs.security-scan.result == 'failure' || needs.deploy-production.result == 'failure' || needs.post-deployment-tests.result == 'failure')
+    steps:
+      - name: Deployment Failure Summary
+        run: |
+          echo "## 🚨 Production Deployment Pipeline Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Validation | ${{ needs.validate-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment | ${{ needs.deploy-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Post-Deploy Tests | ${{ needs.post-deployment-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
+          echo "🚨 Production deployment pipeline failed - check workflow for details"
