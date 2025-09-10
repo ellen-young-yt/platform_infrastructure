@@ -4,13 +4,13 @@
     "type": "string"
   },
   "vpc_cidr_block": {
-    "value": "10.0.0.0/16", 
+    "value": "10.0.0.0/16",
     "type": "string"
   },
   "private_subnet_ids": {
     "value": [
       "subnet-0123456789abcdef0",
-      "subnet-0123456789abcdef1", 
+      "subnet-0123456789abcdef1",
       "subnet-0123456789abcdef2"
     ],
     "type": ["list", "string"]
@@ -44,7 +44,7 @@
     "type": "string"
   },
   "metabase_cluster_arn": {
-    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-metabase", 
+    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-metabase",
     "type": "string"
   }
 }

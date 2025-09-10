@@ -1,3 +1,4 @@
+
 resource "aws_api_gateway_rest_api" "ml_api" {
   name        = "${var.project_name}-${var.environment}-ml-api"
   description = "API Gateway for ML model serving"
@@ -204,7 +205,14 @@ resource "aws_api_gateway_deployment" "ml_api" {
   ]
 
   rest_api_id = aws_api_gateway_rest_api.ml_api.id
-  stage_name  = var.environment
+}
+
+resource "aws_api_gateway_stage" "ml_api" {
+  deployment_id = aws_api_gateway_deployment.ml_api.id
+  rest_api_id   = aws_api_gateway_rest_api.ml_api.id
+  stage_name    = var.environment
+
+  tags = var.tags
 }
 
 resource "aws_api_gateway_api_key" "ml_api" {
@@ -220,7 +228,7 @@ resource "aws_api_gateway_usage_plan" "ml_api" {
 
   api_stages {
     api_id = aws_api_gateway_rest_api.ml_api.id
-    stage  = aws_api_gateway_deployment.ml_api.stage_name
+    stage  = aws_api_gateway_stage.ml_api.stage_name
   }
 
   quota_settings {

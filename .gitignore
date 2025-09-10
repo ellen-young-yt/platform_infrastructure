@@ -48,6 +48,7 @@ logs/
 .env
 .env.local
 .env.*.local
+.env.act
 
 # Temporary files
 *.tmp
@@ -113,8 +114,9 @@ checkov-report.*
 # OS specific
 Thumbs.db:encryptable
 
-# Development scripts (contain sensitive credentials)
+# Development docs (contain sensitive credentials and dev-focused documentation)
 dev-scripts/
+dev_reference/
 
 # Claude-specific files
 CLAUDE.md

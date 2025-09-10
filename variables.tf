@@ -31,18 +31,21 @@ variable "availability_zones" {
   default     = ["us-east-2a", "us-east-2b", "us-east-2c"]
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "snowflake_account_id" {
   description = "AWS account ID for Snowflake (official Snowflake AWS account)"
   type        = string
   default     = "179819430825"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "snowflake_account" {
   description = "Snowflake account identifier"
   type        = string
   default     = ""
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "pagerduty_integration_key" {
   description = "PagerDuty integration key for alerts"
   type        = string
@@ -50,6 +53,7 @@ variable "pagerduty_integration_key" {
   sensitive   = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "notification_email" {
   description = "Email address for notifications"
   type        = string

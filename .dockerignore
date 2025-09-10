@@ -1,0 +1,26 @@
+# Reduce Docker context size for act testing
+.git/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.log
+logs/
+.aws/
+.cache/
+dist/
+build/
+*.zip
+.pytest_cache/
+.tox/
+htmlcov/
+.coverage
+Thumbs.db
+.DS_Store
+*.tmp
+*.temp

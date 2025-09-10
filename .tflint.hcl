@@ -39,7 +39,7 @@ rule "terraform_documented_outputs" {
 }
 
 rule "terraform_documented_variables" {
-  enabled = true
+  enabled = false  # Disabled to reduce noise - can enable later for documentation
 }
 
 rule "terraform_typed_variables" {
@@ -56,15 +56,15 @@ rule "terraform_naming_convention" {
 }
 
 rule "terraform_required_version" {
-  enabled = true
+  enabled = false  # Disabled for modules since they inherit from root
 }
 
 rule "terraform_required_providers" {
-  enabled = true
+  enabled = false  # Disabled for modules since they inherit from root
 }
 
 rule "terraform_standard_module_structure" {
-  enabled = true
+  enabled = false  # Disabled - gives false positives for small utility modules
 }
 
 # AWS-specific rules

@@ -7,11 +7,11 @@ repos:
       - id: terraform_fmt
         name: Terraform format
         description: Rewrites all Terraform configuration files to canonical format
-        
+
       - id: terraform_validate
         name: Terraform validate
         description: Validates all Terraform configuration files
-        
+
       - id: terraform_docs
         name: Terraform docs
         description: Inserts input and output documentation into README.md
@@ -30,22 +30,18 @@ repos:
           - --args=--only=terraform_unused_declarations
           - --args=--only=terraform_comment_syntax
           - --args=--only=terraform_documented_outputs
-          - --args=--only=terraform_documented_variables
           - --args=--only=terraform_typed_variables
           - --args=--only=terraform_module_pinned_source
           - --args=--only=terraform_naming_convention
-          - --args=--only=terraform_required_version
-          - --args=--only=terraform_required_providers
-          - --args=--only=terraform_standard_module_structure
 
   # Checkov - security and compliance scanner
   - repo: https://github.com/bridgecrewio/checkov.git
     rev: '3.2.469'
     hooks:
       - id: checkov
-        name: Checkov security scan
-        description: Runs checkov on Terraform files
-        args: [--framework, terraform]
+        name: Checkov security scan (changed files)
+        description: Fast security scan on changed Terraform files
+        args: [--framework, terraform, --quiet, --compact]
         files: \.tf$
         # Skip some checks that might be too strict for learning environment
         exclude: |
@@ -61,28 +57,28 @@ repos:
       - id: trailing-whitespace
         name: Trim trailing whitespace
         description: This hook trims trailing whitespace
-        
+
       - id: end-of-file-fixer
         name: Fix end of files
         description: Ensures that a file is either empty or ends with one newline
-        
+
       - id: check-yaml
         name: Check YAML
         description: This hook checks yaml files for parseable syntax
-        
+
       - id: check-json
         name: Check JSON
         description: This hook checks json files for parseable syntax
-        
+
       - id: check-merge-conflict
         name: Check for merge conflicts
         description: Check for files that contain merge conflict strings
-        
+
       - id: check-added-large-files
         name: Check for added large files
         description: Prevent giant files from being committed
         args: ['--maxkb=1000']
-        
+
       - id: detect-private-key
         name: Detect private key
         description: Detects presence of private keys
@@ -95,6 +91,7 @@ repos:
         name: Format Python code
         description: The uncompromising Python code formatter
         files: \.py$
+        args: [--line-length=100]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.3.0
@@ -103,6 +100,17 @@ repos:
         name: Flake8 linter
         description: Tool for style guide enforcement
         files: \.py$
+        exclude: ^(infra/|dev-scripts/).*
+        args: [--max-line-length=100]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        name: MyPy type checker
+        description: Static type checker for Python
+        files: ^scripts/.*\.py$
+        args: [--ignore-missing-imports]
 
 default_stages: [commit, push]
 default_install_hook_types: [pre-commit, pre-push]

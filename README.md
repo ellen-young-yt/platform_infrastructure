@@ -26,6 +26,8 @@ platform_infrastructure/
 ├── requirements.txt           # Python dependencies
 ├── pyproject.toml             # Python tool configurations
 ├── .pre-commit-config.yaml    # Code quality hooks
+├── .checkov.yml               # Security scanning configuration
+├── CLAUDE.md                  # Project instructions for Claude Code
 ├── .github/workflows/         # CI/CD pipelines
 │   └── pr-tests.yml
 ├── environments/              # Environment-specific configurations
@@ -46,7 +48,11 @@ platform_infrastructure/
 │   ├── status.py             # Infrastructure status
 │   ├── validate.py           # Configuration validation
 │   └── manage_secrets.py     # Secrets management
+├── dev-scripts/               # Development utilities
+│   └── set-secrets.py        # Local secrets setup
 └── tests/                     # Test suite
+    ├── conftest.py           # Test configuration
+    ├── fixtures/             # Test data and mock outputs
     ├── unit/                 # Unit tests (fast)
     └── integration/          # Integration tests (slow)
 ```
@@ -86,7 +92,7 @@ The infrastructure includes comprehensive monitoring:
 
 ### Development Environment Setup
 
-1. **Setup development environment:**
+1. **Setup development environment (includes pre-commit hooks):**
    ```bash
    make setup
    ```
@@ -128,8 +134,30 @@ All deployment operations work on both Windows and Linux via Python scripts:
 
 - **Unit tests:** `make test-unit`
 - **Integration tests:** `make test-integration ENV=dev`
-- **All quality checks:** `make lint`
+- **All tests for environment:** `make test ENV=dev`
+- **Code quality checks:** `make lint`
+- **Security scanning:** `make security-scan`
+- **Pre-commit hooks:** `make pre-commit`
+- **Test CI pipeline locally:** `make lint && make validate && make test-unit && make pre-commit && make security-scan`
 - **GitHub Actions:** Automatic PR testing with security scans
+
+### Available Make Commands
+
+Run `make help` to see all available commands:
+
+- **setup**: Setup development environment (virtual env + dependencies + pre-commit hooks)
+- **validate**: Validate Terraform configuration
+- **lint**: Run code formatting, linting, and security checks
+- **plan**: Create Terraform execution plan
+- **apply**: Apply Terraform changes
+- **destroy**: Destroy Terraform infrastructure
+- **status**: Show current infrastructure status
+- **test-unit**: Run unit tests (fast, no external dependencies)
+- **test-integration**: Run integration tests (requires ENV to be set)
+- **security-scan**: Run security scanning with Checkov
+- **pre-commit**: Run pre-commit hooks
+- **clean**: Clean up temporary files
+- **check-aws**: Verify AWS credentials and permissions
 
 ### Key Configuration Files
 
@@ -137,3 +165,4 @@ All deployment operations work on both Windows and Linux via Python scripts:
 - **pyproject.toml** - Python tool configurations (pytest, black, mypy, coverage)
 - **requirements.txt** - Dependencies for development and deployment scripts
 - **.pre-commit-config.yaml** - Code quality hooks and security scanning
+- **.checkov.yml** - Security scanning configuration and exclusions
