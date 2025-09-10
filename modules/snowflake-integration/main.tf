@@ -1,3 +1,5 @@
+resource "random_uuid" "snowflake_external_id" {}
+
 resource "aws_iam_role" "snowflake" {
   name = "${var.project_name}-${var.environment}-snowflake-role"
 
@@ -7,9 +9,14 @@ resource "aws_iam_role" "snowflake" {
       {
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::891612547191:root"
+          AWS = "arn:aws:iam::${var.snowflake_account_id}:root"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = random_uuid.snowflake_external_id.result
+          }
+        }
       }
     ]
   })
@@ -186,6 +193,21 @@ resource "aws_secretsmanager_secret_version" "snowflake_credentials" {
   lifecycle {
     ignore_changes = [secret_string]
   }
+}
+
+resource "aws_secretsmanager_secret" "snowflake_external_id" {
+  name                    = "${var.project_name}/${var.environment}/snowflake/external-id"
+  description             = "External ID for Snowflake IAM role assumption"
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+
+  tags = merge(var.tags, {
+    Purpose = "Snowflake external ID"
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "snowflake_external_id" {
+  secret_id     = aws_secretsmanager_secret.snowflake_external_id.id
+  secret_string = random_uuid.snowflake_external_id.result
 }
 
 data "aws_region" "current" {}

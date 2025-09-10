@@ -1,3 +1,4 @@
+
 resource "aws_secretsmanager_secret" "database_credentials" {
   name                    = "${var.project_name}/${var.environment}/database/credentials"
   description             = "Database credentials for ${var.environment} environment"
@@ -49,7 +50,7 @@ resource "aws_secretsmanager_secret" "app_config" {
 # Example structure for manual update:
 # {
 #   "secret_key": "your-secret-key-here",
-#   "jwt_secret": "your-jwt-secret-here", 
+#   "jwt_secret": "your-jwt-secret-here",
 #   "encryption_key": "your-encryption-key-here",
 #   "session_secret": "your-session-secret-here",
 #   "additional_config": {}

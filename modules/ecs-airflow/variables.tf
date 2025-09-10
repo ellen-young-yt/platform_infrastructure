@@ -8,6 +8,7 @@ variable "project_name" {
   type        = string
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "vpc_id" {
   description = "ID of the VPC"
   type        = string

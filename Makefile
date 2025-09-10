@@ -38,6 +38,8 @@ setup: init
 	@echo "$(BLUE)Installing/updating dependencies...$(RESET)"
 	-@infra/Scripts/pip.exe install -r requirements.txt --upgrade
 	-@infra/bin/pip install -r requirements.txt --upgrade
+	@echo "$(BLUE)Installing pre-commit hooks...$(RESET)"
+	-@pre-commit install || echo "$(YELLOW)Warning: pre-commit not available, hooks not installed$(RESET)"
 	@echo "$(GREEN)Setup complete!$(RESET)"
 	@echo "$(GREEN)Windows: infra\\Scripts\\activate$(RESET)"
 	@echo "$(GREEN)Linux/Mac: source infra/bin/activate$(RESET)"

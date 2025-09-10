@@ -32,3 +32,13 @@ output "snowflake_stage_s3_path" {
   description = "S3 path for Snowflake stage"
   value       = "s3://${var.data_lake_bucket_id}/snowflake-stage/"
 }
+
+output "snowflake_external_id_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing Snowflake external ID"
+  value       = aws_secretsmanager_secret.snowflake_external_id.arn
+}
+
+output "snowflake_external_id_secret_name" {
+  description = "Name of the Secrets Manager secret containing Snowflake external ID"
+  value       = aws_secretsmanager_secret.snowflake_external_id.name
+}
