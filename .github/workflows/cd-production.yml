@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy Infrastructure
 
 on:
   push:
@@ -14,23 +14,102 @@ on:
         required: false
         default: false
         type: boolean
+      environment:
+        description: 'Environment to deploy (auto-detected from branch if not specified)'
+        required: false
+        type: choice
+        options:
+          - 'auto'
+          - 'dev'
+          - 'staging'
+          - 'prod'
+        default: 'auto'
 
 concurrency:
-  group: production-deployment
+  group: infrastructure-deployment-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
+  # Determine environment based on branch
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      tfvars_file: ${{ steps.set-env.outputs.tfvars_file }}
+      aws_region: ${{ steps.set-env.outputs.aws_region }}
+      deployment_name: ${{ steps.set-env.outputs.deployment_name }}
+    steps:
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # Determine environment from branch or manual input
+          if [ "${{ github.event.inputs.environment }}" != "" ] && [ "${{ github.event.inputs.environment }}" != "auto" ]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+          else
+            case "${{ github.ref_name }}" in
+              "main")
+                ENVIRONMENT="prod"
+                ;;
+              "staging")
+                ENVIRONMENT="staging"
+                ;;
+              "develop")
+                ENVIRONMENT="dev"
+                ;;
+              *)
+                echo "❌ Unsupported branch: ${{ github.ref_name }}"
+                exit 1
+                ;;
+            esac
+          fi
+
+          # Set environment-specific variables
+          case "$ENVIRONMENT" in
+            "prod")
+              TFVARS_FILE="environments/prod.tfvars"
+              AWS_REGION="us-east-2"
+              DEPLOYMENT_NAME="Production"
+              ;;
+            "staging")
+              TFVARS_FILE="environments/staging.tfvars"
+              AWS_REGION="us-east-2"
+              DEPLOYMENT_NAME="Staging"
+              ;;
+            "dev")
+              TFVARS_FILE="environments/dev.tfvars"
+              AWS_REGION="us-east-2"
+              DEPLOYMENT_NAME="Development"
+              ;;
+            *)
+              echo "❌ Unknown environment: $ENVIRONMENT"
+              exit 1
+              ;;
+          esac
+
+          echo "🎯 Deploying to: $ENVIRONMENT"
+          echo "📁 Using tfvars: $TFVARS_FILE"
+          echo "🌍 AWS Region: $AWS_REGION"
+          echo "🏷️  Deployment: $DEPLOYMENT_NAME"
+
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "tfvars_file=$TFVARS_FILE" >> $GITHUB_OUTPUT
+          echo "aws_region=$AWS_REGION" >> $GITHUB_OUTPUT
+          echo "deployment_name=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
+
   # Pre-deployment validation
-  validate-production:
-    name: Validate Production Configuration
+  validate-infrastructure:
+    name: Validate ${{ needs.determine-environment.outputs.deployment_name }} Configuration
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: determine-environment
     outputs:
-      has_changes: ${{ env.HAS_CHANGES }}
+      has_changes: ${{ steps.plan-status.outputs.has_changes }}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+      AWS_REGION: ${{ needs.determine-environment.outputs.aws_region }}
+      ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,47 +141,53 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
+          echo "🚀 Planning deployment for ${{ env.ENVIRONMENT }} environment"
           terraform plan \
-            -var-file=environments/prod.tfvars \
+            -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
             -input=false \
             -detailed-exitcode \
-            -out=prod.tfplan
+            -out=${{ env.ENVIRONMENT }}.tfplan
         continue-on-error: true
 
       - name: Check Plan Status
+        id: plan-status
         run: |
-          if [ ${{ steps.plan.outputs.exitcode }} -eq 1 ]; then
+          EXIT_CODE=${{ steps.plan.outputs.exitcode }}
+          if [ $EXIT_CODE -eq 1 ]; then
             echo "❌ Terraform plan failed"
             exit 1
-          elif [ ${{ steps.plan.outputs.exitcode }} -eq 0 ]; then
-            echo "✅ No changes detected"
-            echo "HAS_CHANGES=false" >> $GITHUB_ENV
-          elif [ ${{ steps.plan.outputs.exitcode }} -eq 2 ]; then
-            echo "📋 Changes detected and plan succeeded"
-            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          elif [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ No changes detected for ${{ env.ENVIRONMENT }}"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "📋 Changes detected for ${{ env.ENVIRONMENT }}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Display Plan Summary
-        if: env.HAS_CHANGES == 'true'
+        if: steps.plan-status.outputs.has_changes == 'true'
         run: |
-          echo "## 📋 Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Terraform Plan Summary (${{ env.ENVIRONMENT }})" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          terraform show -no-color prod.tfplan >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color ${{ env.ENVIRONMENT }}.tfplan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Plan Artifact
-        if: env.HAS_CHANGES == 'true' || github.event.inputs.force_apply == 'true'
+        if: steps.plan-status.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: prod-tfplan
-          path: prod.tfplan
+          name: ${{ env.ENVIRONMENT }}-tfplan
+          path: ${{ env.ENVIRONMENT }}.tfplan
           retention-days: 1
 
-  # Security scan for production deployment
+  # Security scan
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: determine-environment
+    env:
+      ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,28 +203,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Checkov Security Scan (production-focused)
+      - name: Run Checkov Security Scan
         run: |
+          echo "🔒 Running security scan for ${{ env.ENVIRONMENT }} environment"
           checkov -d . \
             --framework terraform \
             --quiet \
             --compact \
             --download-external-modules true
 
-  # Deploy to production
-  deploy-production:
-    name: Deploy to Production
+  # Deploy infrastructure
+  deploy-infrastructure:
+    name: Deploy to ${{ needs.determine-environment.outputs.deployment_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [validate-production, security-scan]
-    if: needs.validate-production.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
+    needs: [determine-environment, validate-infrastructure, security-scan]
+    if: needs.validate-infrastructure.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
     environment:
-      name: production
+      name: ${{ needs.determine-environment.outputs.environment }}
       url: ${{ steps.outputs.outputs.monitoring_dashboard_url }}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+      AWS_REGION: ${{ needs.determine-environment.outputs.aws_region }}
+      ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -157,10 +244,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download Plan Artifact
-        if: needs.validate-production.outputs.has_changes == 'true'
+        if: needs.validate-infrastructure.outputs.has_changes == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: prod-tfplan
+          name: ${{ env.ENVIRONMENT }}-tfplan
 
       - name: Terraform Init
         run: |
@@ -171,12 +258,15 @@ jobs:
       - name: Terraform Apply
         id: apply
         run: |
-          if [ -f "prod.tfplan" ]; then
-            echo "🚀 Applying planned changes to production..."
-            terraform apply -input=false prod.tfplan
+          if [ -f "${{ env.ENVIRONMENT }}.tfplan" ]; then
+            echo "🚀 Applying planned changes to ${{ env.ENVIRONMENT }}..."
+            terraform apply -input=false ${{ env.ENVIRONMENT }}.tfplan
           elif [ "${{ github.event.inputs.force_apply }}" == "true" ]; then
-            echo "⚠️  Force applying to production..."
-            terraform apply -var-file=environments/prod.tfvars -input=false -auto-approve
+            echo "⚠️  Force applying to ${{ env.ENVIRONMENT }}..."
+            terraform apply \
+              -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
+              -input=false \
+              -auto-approve
           else
             echo "❌ No plan file found and force apply not requested"
             exit 1
@@ -191,24 +281,27 @@ jobs:
 
       - name: Post-deployment Notification
         run: |
-          echo "## 🚀 Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 ${{ needs.determine-environment.outputs.deployment_name }} Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "| Resource | URL/ARN |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Monitoring Dashboard | ${{ steps.outputs.outputs.monitoring_dashboard_url }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔗 API Gateway | ${{ steps.outputs.outputs.api_gateway_url }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🗄️  Data Lake Bucket | ${{ steps.outputs.outputs.data_lake_bucket_arn }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 Environment | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌿 Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
 
   # Post-deployment validation
   post-deployment-tests:
     name: Post-Deployment Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [deploy-production]
-    if: needs.deploy-production.result == 'success'
+    needs: [determine-environment, deploy-infrastructure]
+    if: needs.deploy-infrastructure.result == 'success'
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+      AWS_REGION: ${{ needs.determine-environment.outputs.aws_region }}
+      ENV: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -231,36 +324,36 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Run production integration tests
+      - name: Run integration tests
         run: |
+          echo "🧪 Running integration tests for ${{ env.ENV }} environment"
           pytest tests/integration/ \
             -v \
             --tb=short \
             -m "integration and not slow" \
             --maxfail=1
-        env:
-          ENV: prod
 
       - name: Deployment Success Summary
         if: success()
         run: |
-          echo "## ✅ Deployment Validation Complete" >> $GITHUB_STEP_SUMMARY
-          echo "- 🏗️  Infrastructure is ready for production workloads" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ ${{ needs.determine-environment.outputs.deployment_name }} Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️  Infrastructure is ready for ${{ env.ENV }} workloads" >> $GITHUB_STEP_SUMMARY
           echo "- 📈 Post-deployment tests passed" >> $GITHUB_STEP_SUMMARY
           echo "- 🎯 Deployment completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
 
       - name: Deployment Failure Alert
         if: failure()
         run: |
-          echo "## 🚨 Production Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚨 ${{ needs.determine-environment.outputs.deployment_name }} Deployment Failed" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** Post-deployment validation failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.ENV }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "- Check the test logs above for specific failures" >> $GITHUB_STEP_SUMMARY
-          echo "- Verify production infrastructure health" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify ${{ env.ENV }} infrastructure health" >> $GITHUB_STEP_SUMMARY
           echo "- Consider rollback if infrastructure is unstable" >> $GITHUB_STEP_SUMMARY
           exit 1
 
@@ -269,22 +362,25 @@ jobs:
     name: Notify Deployment Failure
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [validate-production, security-scan, deploy-production, post-deployment-tests]
-    if: always() && (needs.validate-production.result == 'failure' || needs.security-scan.result == 'failure' || needs.deploy-production.result == 'failure' || needs.post-deployment-tests.result == 'failure')
+    needs: [determine-environment, validate-infrastructure, security-scan, deploy-infrastructure, post-deployment-tests]
+    if: always() && (needs.validate-infrastructure.result == 'failure' || needs.security-scan.result == 'failure' || needs.deploy-infrastructure.result == 'failure' || needs.post-deployment-tests.result == 'failure')
     steps:
       - name: Deployment Failure Summary
         run: |
-          echo "## 🚨 Production Deployment Pipeline Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚨 ${{ needs.determine-environment.outputs.deployment_name }} Pipeline Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Validation | ${{ needs.validate-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment Detection | ${{ needs.determine-environment.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Validation | ${{ needs.validate-infrastructure.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Deployment | ${{ needs.deploy-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment | ${{ needs.deploy-infrastructure.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Post-Deploy Tests | ${{ needs.post-deployment-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.determine-environment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Failed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
 
-          echo "🚨 Production deployment pipeline failed - check workflow for details"
+          echo "🚨 ${{ needs.determine-environment.outputs.deployment_name }} pipeline failed - check workflow for details"
