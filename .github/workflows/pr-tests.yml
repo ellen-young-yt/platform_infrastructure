@@ -200,7 +200,7 @@ jobs:
             -m "integration and not slow" \
             --maxfail=3
         env:
-          ENV: ci
+          ENV: dev
 
       - name: Skip integration tests (no AWS credentials)
         if: ${{ env.AWS_ACCESS_KEY_ID == '' }}
