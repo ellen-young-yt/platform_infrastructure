@@ -127,17 +127,17 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Terraform Init
-        run: |
-          # Use the exact path from setup-terraform action
-          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init
-
       - name: Select Terraform Workspace
         run: |
           echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
           terraform workspace select ${{ env.ENVIRONMENT }} || terraform workspace new ${{ env.ENVIRONMENT }}
           echo "✅ Current workspace: $(terraform workspace show)"
+
+      - name: Terraform Init
+        run: |
+          # Use the exact path from setup-terraform action
+          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
+          terraform init
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -256,17 +256,17 @@ jobs:
         with:
           name: ${{ env.ENVIRONMENT }}-tfplan
 
-      - name: Terraform Init
-        run: |
-          # Use the exact path from setup-terraform action
-          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init
-
       - name: Select Terraform Workspace
         run: |
           echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
           terraform workspace select ${{ env.ENVIRONMENT }}
           echo "✅ Current workspace: $(terraform workspace show)"
+
+      - name: Terraform Init
+        run: |
+          # Use the exact path from setup-terraform action
+          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
+          terraform init
 
       - name: Terraform Apply
         id: apply
