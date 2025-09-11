@@ -156,7 +156,7 @@ resource "aws_security_group" "lambda" {
 
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  output_path = "${path.root}/lambda_function_${var.environment}.zip"
+  output_path = "${path.root}/lambda_function.zip"
 
   source {
     content = templatefile("${path.module}/templates/lambda_function.py", {
