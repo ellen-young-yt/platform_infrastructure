@@ -133,6 +133,12 @@ jobs:
           chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
           terraform init
 
+      - name: Select Terraform Workspace
+        run: |
+          echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
+          terraform workspace select ${{ env.ENVIRONMENT }} || terraform workspace new ${{ env.ENVIRONMENT }}
+          echo "✅ Current workspace: $(terraform workspace show)"
+
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
@@ -255,6 +261,12 @@ jobs:
           # Use the exact path from setup-terraform action
           chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
           terraform init
+
+      - name: Select Terraform Workspace
+        run: |
+          echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
+          terraform workspace select ${{ env.ENVIRONMENT }}
+          echo "✅ Current workspace: $(terraform workspace show)"
 
       - name: Terraform Apply
         id: apply
