@@ -289,7 +289,6 @@ jobs:
         id: outputs
         run: |
           echo "monitoring_dashboard_url=$(terraform output -raw monitoring_dashboard_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
-          echo "api_gateway_url=$(terraform output -raw api_gateway_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
           echo "data_lake_bucket_arn=$(terraform output -raw data_lake_bucket_arn 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
 
       - name: Post-deployment Notification
@@ -298,7 +297,6 @@ jobs:
           echo "| Resource | URL/ARN |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Monitoring Dashboard | ${{ steps.outputs.outputs.monitoring_dashboard_url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔗 API Gateway | ${{ steps.outputs.outputs.api_gateway_url }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🗄️  Data Lake Bucket | ${{ steps.outputs.outputs.data_lake_bucket_arn }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🌍 Environment | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🌿 Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
