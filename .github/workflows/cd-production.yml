@@ -131,7 +131,7 @@ jobs:
         run: |
           # Use the exact path from setup-terraform action
           chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init
+          terraform init -reconfigure
 
       - name: Select Terraform Workspace
         run: |
@@ -260,7 +260,7 @@ jobs:
         run: |
           # Use the exact path from setup-terraform action
           chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init
+          terraform init -reconfigure
 
       - name: Select Terraform Workspace
         run: |
