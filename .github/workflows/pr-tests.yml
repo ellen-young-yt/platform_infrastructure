@@ -76,7 +76,7 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init -reconfigure
 
       - name: Terraform Validate
         run: terraform validate
@@ -89,10 +89,43 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
+      - name: Determine Target Environment
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        id: determine-env
+        run: |
+          # Determine target environment based on PR target branch
+          case "${{ github.base_ref }}" in
+            "main")
+              ENVIRONMENT="prod"
+              TFVARS_FILE="environments/prod.tfvars"
+              ;;
+            "staging")
+              ENVIRONMENT="staging"
+              TFVARS_FILE="environments/staging.tfvars"
+              ;;
+            "develop")
+              ENVIRONMENT="dev"
+              TFVARS_FILE="environments/dev.tfvars"
+              ;;
+            *)
+              # Default to dev for feature branches or unknown targets
+              ENVIRONMENT="dev"
+              TFVARS_FILE="environments/dev.tfvars"
+              ;;
+          esac
+
+          echo "🎯 Target environment: $ENVIRONMENT"
+          echo "📁 Using tfvars: $TFVARS_FILE"
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "tfvars_file=$TFVARS_FILE" >> $GITHUB_OUTPUT
+
       - name: Terraform Plan (validation only)
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
         run: |
-          terraform plan -var-file=environments/dev.tfvars -input=false -detailed-exitcode
+          echo "🔄 Selecting workspace for ${{ steps.determine-env.outputs.environment }}"
+          terraform workspace select ${{ steps.determine-env.outputs.environment }} || terraform workspace new ${{ steps.determine-env.outputs.environment }}
+          echo "🚀 Planning for ${{ steps.determine-env.outputs.environment }} environment (validation only)"
+          terraform plan -var-file=${{ steps.determine-env.outputs.tfvars_file }} -input=false -detailed-exitcode
 
       - name: Terraform Documentation Check
         run: terraform-docs markdown . --output-check
@@ -183,6 +216,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Determine Target Environment for Integration Tests
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        id: determine-test-env
+        run: |
+          # Determine target environment based on PR target branch
+          case "${{ github.base_ref }}" in
+            "main")
+              ENVIRONMENT="prod"
+              ;;
+            "staging")
+              ENVIRONMENT="staging"
+              ;;
+            "develop")
+              ENVIRONMENT="dev"
+              ;;
+            *)
+              # Default to dev for feature branches or unknown targets
+              ENVIRONMENT="dev"
+              ;;
+          esac
+
+          echo "🧪 Testing against: $ENVIRONMENT environment"
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+
       - name: Configure AWS credentials (if available)
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
         uses: aws-actions/configure-aws-credentials@v4
@@ -194,13 +251,14 @@ jobs:
       - name: Run integration tests
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
         run: |
+          echo "🧪 Running integration tests against ${{ steps.determine-test-env.outputs.environment }} environment"
           pytest tests/integration/ \
             -v \
             --tb=short \
             -m "integration and not slow" \
             --maxfail=3
         env:
-          ENV: dev
+          ENV: ${{ steps.determine-test-env.outputs.environment }}
 
       - name: Skip integration tests (no AWS credentials)
         if: ${{ env.AWS_ACCESS_KEY_ID == '' }}

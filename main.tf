@@ -16,6 +16,13 @@ terraform {
       version = "~> 3.0"
     }
   }
+
+  backend "s3" {
+    bucket  = "terraform-state-madamski"
+    key     = "terraform.tfstate"
+    region  = "us-east-2"
+    encrypt = true
+  }
 }
 
 provider "aws" {
@@ -116,16 +123,6 @@ module "ecs_metabase" {
   tags = local.common_tags
 }
 
-module "lambda_serving" {
-  source = "./modules/lambda-serving"
-
-  environment        = var.environment
-  project_name       = var.project_name
-  vpc_id             = module.networking.vpc_id
-  private_subnet_ids = module.networking.private_subnet_ids
-
-  tags = local.common_tags
-}
 
 module "monitoring" {
   source = "./modules/monitoring"
