@@ -236,6 +236,11 @@ class TestInfrastructureState:
             root_module = state_data["values"].get("root_module", {})
             resources = root_module.get("resources", [])
 
+            # Also check child modules for resources (common with modular Terraform)
+            child_modules = root_module.get("child_modules", [])
+            for child_module in child_modules:
+                resources.extend(child_module.get("resources", []))
+
             assert len(resources) > 0, "Should have resources in Terraform state"
 
             # Check for key resource types

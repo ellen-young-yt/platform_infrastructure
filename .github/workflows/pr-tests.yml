@@ -76,7 +76,7 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init -reconfigure
 
       - name: Terraform Validate
         run: terraform validate
@@ -122,6 +122,8 @@ jobs:
       - name: Terraform Plan (validation only)
         if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
         run: |
+          echo "🔄 Selecting workspace for ${{ steps.determine-env.outputs.environment }}"
+          terraform workspace select ${{ steps.determine-env.outputs.environment }} || terraform workspace new ${{ steps.determine-env.outputs.environment }}
           echo "🚀 Planning for ${{ steps.determine-env.outputs.environment }} environment (validation only)"
           terraform plan -var-file=${{ steps.determine-env.outputs.tfvars_file }} -input=false -detailed-exitcode
 

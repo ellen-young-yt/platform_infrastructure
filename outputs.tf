@@ -43,10 +43,6 @@ output "metabase_cluster_arn" {
   value       = module.ecs_metabase.cluster_arn
 }
 
-output "api_gateway_url" {
-  description = "URL of the API Gateway for ML model serving"
-  value       = module.lambda_serving.api_gateway_url
-}
 
 output "monitoring_dashboard_url" {
   description = "URL of the CloudWatch dashboard"
