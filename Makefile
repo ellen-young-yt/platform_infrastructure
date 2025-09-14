@@ -171,35 +171,18 @@ docs:
 
 ## test: Run all tests appropriate for the environment
 test: test-unit
-	@if [ "$(ENV)" != "prod" ]; then \
-		echo "$(BLUE)Running integration tests for $(ENV)...$(RESET)"; \
-		python -m pytest tests/integration/ -v --tb=short --env=$(ENV) 2>/dev/null || echo "$(YELLOW)No integration tests found$(RESET)"; \
-	else \
-		echo "$(YELLOW)Skipping integration tests in production environment$(RESET)"; \
-	fi
+	@python -c "import sys; sys.exit(0) if '$(ENV)' != 'prod' else sys.exit(1)" && (echo "$(BLUE)Running integration tests for $(ENV)...$(RESET)" && python -m pytest tests/integration/ -v --tb=short --env=$(ENV) 2>nul || python -m pytest tests/integration/ -v --tb=short --env=$(ENV) 2>/dev/null || echo "$(YELLOW)No integration tests found$(RESET)") || echo "$(YELLOW)Skipping integration tests in production environment$(RESET)"
 
 ## test-unit: Run unit tests (fast, no external dependencies)
 test-unit: setup
 	@echo "$(BLUE)Running unit tests...$(RESET)"
-	@if [ -d "tests" ]; then \
-		python -m pytest tests/unit/ -v --tb=short || echo "$(YELLOW)No unit tests found$(RESET)"; \
-	else \
-		echo "$(YELLOW)Tests directory not found. Run 'make setup-tests' to initialize$(RESET)"; \
-	fi
+	@python -c "import os, sys; sys.exit(0) if os.path.exists('tests') else sys.exit(1)" && python -m pytest tests/unit/ -v --tb=short || echo "$(YELLOW)Tests directory not found. Run 'make setup-tests' to initialize$(RESET)"
 
 ## test-integration: Run integration tests (requires ENV to be set)
 test-integration: setup
-	@if [ -z "$(ENV)" ]; then \
-		echo "$(RED)ENV variable must be set for integration tests$(RESET)"; \
-		echo "$(BLUE)Usage: make test-integration ENV=dev$(RESET)"; \
-		exit 1; \
-	fi
+	@python -c "import sys; sys.exit(1) if '$(ENV)' == '' or '$(ENV)' == 'ENV' else sys.exit(0)" || (echo "$(RED)ENV variable must be set for integration tests$(RESET)" && echo "$(BLUE)Usage: make test-integration ENV=dev$(RESET)" && exit 1)
 	@echo "$(BLUE)Running integration tests for $(ENV)...$(RESET)"
-	@if [ -d "tests/integration" ]; then \
-		python -m pytest tests/integration/ -v --tb=short --env=$(ENV) || echo "$(YELLOW)No integration tests found$(RESET)"; \
-	else \
-		echo "$(YELLOW)Integration tests directory not found$(RESET)"; \
-	fi
+	@python -c "import os, sys; sys.exit(0) if os.path.exists('tests/integration') else sys.exit(1)" && python -m pytest tests/integration/ -v --tb=short --env=$(ENV) || echo "$(YELLOW)Integration tests directory not found$(RESET)"
 
 ## setup-tests: Initialize test directory structure
 setup-tests:

@@ -114,12 +114,24 @@ class TerraformValidator:
         """Validate variables file"""
         print_step("Validating variables file...")
 
-        if not self.tfvars_file.exists():
-            print_error(f"Variables file not found: {self.tfvars_file}")
+        # Check both common.tfvars and environment-specific tfvars
+        common_tfvars_file = self.root_dir / "environments" / "common.tfvars"
+
+        if not common_tfvars_file.exists():
+            print_error(f"Common variables file not found: {common_tfvars_file}")
             return False
 
-        # Check for required variables
-        content = self.tfvars_file.read_text()
+        if not self.tfvars_file.exists():
+            print_error(f"Environment variables file not found: {self.tfvars_file}")
+            return False
+
+        # Read both files
+        common_content = common_tfvars_file.read_text()
+        env_content = self.tfvars_file.read_text()
+
+        # Combine content for variable checking
+        combined_content = common_content + "\n" + env_content
+
         required_vars = [
             "aws_region",
             "environment",
@@ -133,14 +145,14 @@ class TerraformValidator:
             import re
 
             pattern = f"{var}\\s*="
-            if not re.search(pattern, content):
+            if not re.search(pattern, combined_content):
                 missing.append(var)
 
         if missing:
             print_error(f"Missing required variables: {', '.join(missing)}")
             return False
 
-        print_success("Variables file is valid")
+        print_success("Variables files are valid")
         return True
 
     def test_aws_credentials(self) -> bool:

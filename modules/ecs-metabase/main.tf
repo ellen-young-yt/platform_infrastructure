@@ -23,72 +23,11 @@ resource "aws_ecs_cluster_capacity_providers" "metabase" {
   }
 }
 
-resource "aws_iam_role" "metabase_execution" {
-  name = "${var.project_name}-${var.environment}-metabase-execution-role"
+# IAM roles are now managed centrally - see main.tf iam_metabase module
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy_attachment" "metabase_execution" {
-  role       = aws_iam_role.metabase_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role" "metabase_task" {
-  name = "${var.project_name}-${var.environment}-metabase-task-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy" "metabase_task" {
-  name = "${var.project_name}-${var.environment}-metabase-task-policy"
-  role = aws_iam_role.metabase_task.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/${var.environment}/*"
-      }
-    ]
-  })
-}
-
-resource "aws_cloudwatch_log_group" "metabase" {
-  name              = "/ecs/${var.project_name}-${var.environment}-metabase"
-  retention_in_days = 30
-
-  tags = var.tags
+# CloudWatch Log Group managed by monitoring module
+locals {
+  log_group_name = "/ecs/${var.project_name}-${var.environment}-metabase"
 }
 
 resource "aws_ecs_task_definition" "metabase" {
@@ -97,8 +36,8 @@ resource "aws_ecs_task_definition" "metabase" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
-  execution_role_arn       = aws_iam_role.metabase_execution.arn
-  task_role_arn            = aws_iam_role.metabase_task.arn
+  execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
 
   container_definitions = jsonencode([
     {
@@ -126,7 +65,7 @@ resource "aws_ecs_task_definition" "metabase" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.metabase.name
+          "awslogs-group"         = local.log_group_name
           "awslogs-region"        = data.aws_region.current.name
           "awslogs-stream-prefix" = "metabase"
         }

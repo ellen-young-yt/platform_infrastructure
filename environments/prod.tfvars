@@ -1,10 +1,25 @@
-aws_region         = "us-east-2"
-environment        = "prod"
-project_name       = "ellen-young-yt"
-vpc_cidr           = "10.2.0.0/16"
-availability_zones = ["us-east-2a", "us-east-2b", "us-east-2c"]
+# Production environment specific configuration
+environment = "prod"
 
-snowflake_account_id      = "703671920640"
-snowflake_account         = "QHAQNPB-NO48574"
-notification_email        = "m.adamski3@gmail.com"
-pagerduty_integration_key = ""
+# Network Configuration - Production
+vpc_cidr = "10.2.0.0/16"
+
+# Snowflake Integration - Production Account
+snowflake_account_id = "703671920640"
+
+# ECS Resource Configuration - Higher performance for production
+task_cpu      = "1024"
+task_memory   = "2048"
+desired_count = 2
+
+# ALB Configuration - Protection enabled
+enable_deletion_protection = true
+
+# Environment-specific application variables
+ecs_environment_variables = {
+  DBT_PROFILES_DIR = "/var/task/profiles"
+  DBT_PROJECT_DIR  = "/var/task"
+  DBT_TARGET       = "prod"
+  ENVIRONMENT      = "prod"
+  LOG_LEVEL        = "INFO"
+}

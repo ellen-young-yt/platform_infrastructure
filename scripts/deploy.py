@@ -120,9 +120,14 @@ def terraform_init(root_dir: str) -> None:
 
 def terraform_plan(root_dir: str, tfvars: str, extra_args: List[str]) -> None:
     print(cyan("Creating Terraform plan..."))
+
+    # Include common.tfvars and environment-specific tfvars
+    common_tfvars = os.path.join(root_dir, "environments", "common.tfvars")
     cmd = [
         "terraform",
         "plan",
+        "-var-file",
+        common_tfvars,
         "-var-file",
         tfvars,
         "-input=false",
@@ -140,7 +145,14 @@ def terraform_apply(root_dir: str, tfvars: str, auto: bool, extra_args: List[str
         auto_flag = ["--auto-approve"]
     else:
         auto_flag = []
-    cmd = ["terraform", "apply", "-var-file", tfvars, "-input=false"] + auto_flag + extra_args
+
+    # Include common.tfvars and environment-specific tfvars
+    common_tfvars = os.path.join(root_dir, "environments", "common.tfvars")
+    cmd = (
+        ["terraform", "apply", "-var-file", common_tfvars, "-var-file", tfvars, "-input=false"]
+        + auto_flag
+        + extra_args
+    )
     rc = run_check(cmd)
     if rc != 0:
         die("Terraform apply failed", rc)
@@ -164,8 +176,10 @@ def terraform_destroy(root_dir: str, tfvars: str, auto: bool, extra_args: List[s
         if resp != "yes":
             print(blue("Destruction cancelled"))
             return
+    # Include common.tfvars and environment-specific tfvars
+    common_tfvars = os.path.join(root_dir, "environments", "common.tfvars")
     cmd = (
-        ["terraform", "destroy", "-var-file", tfvars, "-input=false"]
+        ["terraform", "destroy", "-var-file", common_tfvars, "-var-file", tfvars, "-input=false"]
         + (["--auto-approve"] if auto else [])
         + extra_args
     )
@@ -217,8 +231,13 @@ def main(argv: List[str]) -> int:
     ensure_on_path("terraform")
     terraform_version()
     check_aws_identity()
+
+    # Check for both common.tfvars and environment-specific tfvars
+    common_tfvars = os.path.join(root_dir, "environments", "common.tfvars")
+    if not os.path.isfile(common_tfvars):
+        die(f"Common variables file not found: {common_tfvars}")
     if not os.path.isfile(tfvars_file):
-        die(f"Terraform variables file not found: {tfvars_file}")
+        die(f"Environment variables file not found: {tfvars_file}")
     print(green("Environment files validated"))
 
     # Initialize Terraform

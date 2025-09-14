@@ -1,0 +1,67 @@
+resource "aws_ecr_repository" "dbt_project" {
+  name = "${var.project_name}-${var.environment}-dbt"
+
+  image_tag_mutability = "IMMUTABLE"
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.dbt_ecr_key.arn
+  }
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-dbt-ecr"
+  })
+}
+
+resource "aws_kms_key" "dbt_ecr_key" {
+  description             = "KMS key for dbt ECR repository encryption"
+  deletion_window_in_days = var.environment == "prod" ? 30 : 7
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-dbt-ecr-kms-key"
+  })
+}
+
+resource "aws_kms_alias" "dbt_ecr_key" {
+  name          = "alias/${var.project_name}-${var.environment}-dbt-ecr"
+  target_key_id = aws_kms_key.dbt_ecr_key.key_id
+}
+
+resource "aws_ecr_lifecycle_policy" "dbt_project" {
+  repository = aws_ecr_repository.dbt_project.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Delete untagged images after 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}

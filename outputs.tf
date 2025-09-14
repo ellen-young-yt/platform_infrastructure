@@ -48,3 +48,28 @@ output "monitoring_dashboard_url" {
   description = "URL of the CloudWatch dashboard"
   value       = module.monitoring.dashboard_url
 }
+
+output "ecs_dbt_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = module.ecs_dbt.cluster_name
+}
+
+output "ecs_cluster_arn" {
+  description = "ARN of the ECS cluster"
+  value       = module.ecs_dbt.cluster_arn
+}
+
+output "ecs_task_definition_arn" {
+  description = "ARN of the ECS task definition"
+  value       = module.ecs_dbt.task_definition_arn
+}
+
+output "ecs_execution_role_arn" {
+  description = "ARN of the ECS task execution role"
+  value       = module.iam.ecs_execution_role_arn
+}
+
+output "ecs_task_role_arn" {
+  description = "ARN of the ECS task role"
+  value       = module.iam.ecs_task_role_arn
+}
