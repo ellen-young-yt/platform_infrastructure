@@ -59,3 +59,49 @@ variable "notification_email" {
   type        = string
   default     = ""
 }
+
+variable "service_name" {
+  description = "Name of the ECS service"
+  type        = string
+}
+
+variable "task_cpu" {
+  description = "CPU units for the ECS task"
+  type        = string
+  default     = "512"
+}
+
+variable "task_memory" {
+  description = "Memory for the ECS task"
+  type        = string
+  default     = "1024"
+}
+
+variable "ecs_environment_variables" {
+  description = "Environment variables for the ECS container"
+  type        = map(string)
+  default     = {}
+}
+
+variable "container_name" {
+  description = "Name of the ECS container"
+  type        = string
+}
+
+variable "desired_count" {
+  description = "Desired number of ECS tasks"
+  type        = number
+  default     = 1
+}
+
+variable "image_tag" {
+  description = "Docker image tag"
+  type        = string
+  default     = "latest"
+}
+
+variable "enable_deletion_protection" {
+  description = "Enable deletion protection for ALBs"
+  type        = bool
+  default     = false
+}

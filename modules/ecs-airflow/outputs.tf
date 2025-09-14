@@ -22,13 +22,3 @@ output "scheduler_service_name" {
   description = "Name of the Airflow scheduler service"
   value       = aws_ecs_service.airflow_scheduler.name
 }
-
-output "task_role_arn" {
-  description = "ARN of the Airflow task IAM role"
-  value       = aws_iam_role.airflow_task.arn
-}
-
-output "execution_role_arn" {
-  description = "ARN of the Airflow execution IAM role"
-  value       = aws_iam_role.airflow_execution.arn
-}

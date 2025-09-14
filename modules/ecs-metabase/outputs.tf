@@ -38,13 +38,3 @@ output "port_forward_instructions" {
     "4. Access Metabase on http://localhost:3000 after port forwarding"
   ])
 }
-
-output "task_role_arn" {
-  description = "ARN of the Metabase task IAM role"
-  value       = aws_iam_role.metabase_task.arn
-}
-
-output "execution_role_arn" {
-  description = "ARN of the Metabase execution IAM role"
-  value       = aws_iam_role.metabase_execution.arn
-}

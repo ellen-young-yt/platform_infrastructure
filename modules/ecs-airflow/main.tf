@@ -23,98 +23,11 @@ resource "aws_ecs_cluster_capacity_providers" "airflow" {
   }
 }
 
-resource "aws_iam_role" "airflow_execution" {
-  name = "${var.project_name}-${var.environment}-airflow-execution-role"
+# IAM roles are now managed centrally - see main.tf iam_airflow module
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy_attachment" "airflow_execution" {
-  role       = aws_iam_role.airflow_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role" "airflow_task" {
-  name = "${var.project_name}-${var.environment}-airflow-task-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_role_policy" "airflow_task" {
-  name = "${var.project_name}-${var.environment}-airflow-task-policy"
-  role = aws_iam_role.airflow_task.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "arn:aws:s3:::${var.project_name}-${var.environment}-*",
-          "arn:aws:s3:::${var.project_name}-${var.environment}-*/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "kms:Decrypt",
-          "kms:GenerateDataKey"
-        ]
-        Resource = "arn:aws:kms:*:*:key/*"
-        Condition = {
-          StringLike = {
-            "kms:ViaService" = "s3.*.amazonaws.com"
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/${var.environment}/*"
-      }
-    ]
-  })
-}
-
-resource "aws_cloudwatch_log_group" "airflow" {
-  name              = "/ecs/${var.project_name}-${var.environment}-airflow"
-  retention_in_days = 30
-
-  tags = var.tags
+# CloudWatch Log Group managed by monitoring module
+locals {
+  log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
 }
 
 resource "aws_ecs_task_definition" "airflow_webserver" {
@@ -123,8 +36,8 @@ resource "aws_ecs_task_definition" "airflow_webserver" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.webserver_cpu
   memory                   = var.webserver_memory
-  execution_role_arn       = aws_iam_role.airflow_execution.arn
-  task_role_arn            = aws_iam_role.airflow_task.arn
+  execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
 
   container_definitions = jsonencode([
     {
@@ -157,7 +70,7 @@ resource "aws_ecs_task_definition" "airflow_webserver" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.airflow.name
+          "awslogs-group"         = local.log_group_name
           "awslogs-region"        = data.aws_region.current.name
           "awslogs-stream-prefix" = "webserver"
         }
@@ -176,8 +89,8 @@ resource "aws_ecs_task_definition" "airflow_scheduler" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.scheduler_cpu
   memory                   = var.scheduler_memory
-  execution_role_arn       = aws_iam_role.airflow_execution.arn
-  task_role_arn            = aws_iam_role.airflow_task.arn
+  execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
 
   container_definitions = jsonencode([
     {
@@ -203,7 +116,7 @@ resource "aws_ecs_task_definition" "airflow_scheduler" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.airflow.name
+          "awslogs-group"         = local.log_group_name
           "awslogs-region"        = data.aws_region.current.name
           "awslogs-stream-prefix" = "scheduler"
         }
