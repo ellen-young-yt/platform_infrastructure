@@ -60,7 +60,7 @@ resource "aws_ecs_task_definition" "dbt" {
           valueFrom = var.database_secret_name
         },
         {
-          name      = "DBT_PROFILES_DIR"
+          name      = "DBT_PROFILES_CONFIG"
           valueFrom = var.app_config_secret_name
         },
         {

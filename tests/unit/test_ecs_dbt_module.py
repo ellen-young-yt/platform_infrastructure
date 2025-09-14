@@ -79,7 +79,7 @@ class TestECSDbtModule:
         assert "secrets = [" in content
         assert re.search(r'name\s*=\s*"DATABASE_URL"', content)
         assert re.search(r"valueFrom\s*=\s*var.database_secret_name", content)
-        assert re.search(r'name\s*=\s*"DBT_PROFILES_DIR"', content)
+        assert re.search(r'name\s*=\s*"DBT_PROFILES_CONFIG"', content)
         assert re.search(r"valueFrom\s*=\s*var.app_config_secret_name", content)
         assert re.search(r'name\s*=\s*"API_KEYS"', content)
         assert re.search(r"valueFrom\s*=\s*var.api_keys_secret_name", content)
