@@ -84,6 +84,22 @@ module "snowflake_integration" {
   tags                 = local.common_tags
 }
 
+# IAM for Airflow
+module "iam_airflow" {
+  source = "./modules/iam"
+
+  service_name = "airflow"
+  service_type = "airflow"
+  environment  = var.environment
+  project_name = var.project_name
+  common_tags  = local.common_tags
+
+  # Airflow doesn't need data lake buckets but inherits project-based S3 access
+  data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
+  processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
+  artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
+}
+
 module "ecs_airflow" {
   source = "./modules/ecs-airflow"
 
@@ -93,13 +109,33 @@ module "ecs_airflow" {
   private_subnet_ids    = module.networking.private_subnet_ids
   ecs_security_group_id = module.networking.ecs_security_group_id
 
-  # Use smaller resources for dev
-  webserver_cpu    = var.environment == "dev" ? 256 : 512
-  webserver_memory = var.environment == "dev" ? 512 : 1024
-  scheduler_cpu    = var.environment == "dev" ? 256 : 512
-  scheduler_memory = var.environment == "dev" ? 512 : 1024
+  # Use centralized IAM roles
+  execution_role_arn = module.iam_airflow.ecs_execution_role_arn
+  task_role_arn      = module.iam_airflow.ecs_task_role_arn
+
+  # Resource configuration from environment variables
+  webserver_cpu    = var.task_cpu
+  webserver_memory = var.task_memory
+  scheduler_cpu    = var.task_cpu
+  scheduler_memory = var.task_memory
 
   tags = local.common_tags
+}
+
+# IAM for Metabase
+module "iam_metabase" {
+  source = "./modules/iam"
+
+  service_name = "metabase"
+  service_type = "metabase"
+  environment  = var.environment
+  project_name = var.project_name
+  common_tags  = local.common_tags
+
+  # Metabase doesn't need S3 buckets but we have to pass them
+  data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
+  processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
+  artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
 }
 
 module "ecs_metabase" {
@@ -112,17 +148,50 @@ module "ecs_metabase" {
   public_subnet_ids     = module.networking.public_subnet_ids
   ecs_security_group_id = module.networking.ecs_security_group_id
 
-  # Disable ALB for dev environment to save costs
-  enable_load_balancer = var.environment == "prod" ? true : false
+  # Use centralized IAM roles
+  execution_role_arn = module.iam_metabase.ecs_execution_role_arn
+  task_role_arn      = module.iam_metabase.ecs_task_role_arn
 
-  # Use smaller resources for dev
-  cpu           = var.environment == "dev" ? 256 : 512
-  memory        = var.environment == "dev" ? 512 : 1024
-  desired_count = var.environment == "dev" ? 1 : 1
+  # Configuration from environment variables
+  enable_load_balancer = var.enable_deletion_protection # Use same logic as ALB protection
+
+  # Resource configuration
+  cpu           = var.task_cpu
+  memory        = var.task_memory
+  desired_count = var.desired_count
 
   tags = local.common_tags
 }
 
+module "ecr" {
+  source = "./modules/ecr"
+
+  project_name = var.project_name
+  environment  = var.environment
+  tags         = local.common_tags
+}
+
+# ECS Cluster and Service
+module "ecs_dbt" {
+  source = "./modules/ecs-dbt"
+
+  service_name          = var.service_name
+  container_name        = var.container_name
+  environment           = var.environment
+  project_name          = var.project_name
+  image_uri             = "${module.ecr.dbt_repository_url}:${var.image_tag}"
+  task_cpu              = var.task_cpu
+  task_memory           = var.task_memory
+  execution_role_arn    = module.iam.ecs_execution_role_arn
+  task_role_arn         = module.iam.ecs_task_role_arn
+  environment_variables = var.ecs_environment_variables
+  tags                  = local.common_tags
+
+  # Secrets integration
+  database_secret_name   = module.secrets.database_credentials_secret_name
+  app_config_secret_name = module.secrets.app_config_secret_name
+  api_keys_secret_name   = module.secrets.api_keys_secret_name
+}
 
 module "monitoring" {
   source = "./modules/monitoring"
@@ -130,5 +199,35 @@ module "monitoring" {
   environment  = var.environment
   project_name = var.project_name
 
+  # ECS services to monitor
+  ecs_service_names = [
+    "${var.project_name}-${var.environment}-airflow-webserver",
+    "${var.project_name}-${var.environment}-airflow-scheduler",
+    "${var.project_name}-${var.environment}-metabase",
+    "${var.service_name}-${var.environment}"
+  ]
+
+  # Log groups for centralized management
+  log_group_names = [
+    "/ecs/${var.project_name}-${var.environment}-airflow",
+    "/ecs/${var.project_name}-${var.environment}-metabase",
+    "/ecs/${var.project_name}-${var.environment}-${var.service_name}"
+  ]
+
   tags = local.common_tags
+}
+
+module "iam" {
+  source = "./modules/iam"
+
+  service_name = var.service_name
+  service_type = "dbt"
+  environment  = var.environment
+  project_name = var.project_name
+  common_tags  = local.common_tags
+
+  # S3 bucket ARNs for DBT data access
+  data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
+  processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
+  artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
 }

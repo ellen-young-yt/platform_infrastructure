@@ -150,6 +150,7 @@ jobs:
         run: |
           echo "🚀 Planning deployment for ${{ env.ENVIRONMENT }} environment"
           terraform plan \
+            -var-file=environments/common.tfvars \
             -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
             -input=false \
             -detailed-exitcode \
@@ -277,6 +278,7 @@ jobs:
           elif [ "${{ github.event.inputs.force_apply }}" == "true" ]; then
             echo "⚠️  Force applying to ${{ env.ENVIRONMENT }}..."
             terraform apply \
+              -var-file=environments/common.tfvars \
               -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
               -input=false \
               -auto-approve

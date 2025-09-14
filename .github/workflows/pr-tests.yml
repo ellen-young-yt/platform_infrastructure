@@ -125,7 +125,7 @@ jobs:
           echo "🔄 Selecting workspace for ${{ steps.determine-env.outputs.environment }}"
           terraform workspace select ${{ steps.determine-env.outputs.environment }} || terraform workspace new ${{ steps.determine-env.outputs.environment }}
           echo "🚀 Planning for ${{ steps.determine-env.outputs.environment }} environment (validation only)"
-          terraform plan -var-file=${{ steps.determine-env.outputs.tfvars_file }} -input=false -detailed-exitcode
+          terraform plan -var-file=environments/common.tfvars -var-file=${{ steps.determine-env.outputs.tfvars_file }} -input=false -detailed-exitcode
 
       - name: Terraform Documentation Check
         run: terraform-docs markdown . --output-check
@@ -285,3 +285,29 @@ jobs:
           echo "✅ Terraform validation and security"
           echo "✅ Unit tests across Python versions"
           echo "✅ Pre-commit hooks"
+
+
+
+    # - name: Get Infrastructure Outputs
+    #   id: terraform-outputs
+    #   working-directory: ./terraform
+    #   run: |
+    #     ECR_REPOSITORY_URL=$(terraform output -raw ecr_repository_url)
+    #     ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name) #TODO: Remove ECS reference
+    #     ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name) #TODO: Remove ECS reference
+    #     echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+    #     echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT #TODO: Remove ECS reference
+    #     echo "ecs_service_name=$ECS_SERVICE_NAME" >> $GITHUB_OUTPUT #TODO: Remove ECS reference
+
+# - name: Update ECS service with new image #TODO: Remove entire ECS deployment step
+#       run: |
+#         # Force a new deployment with the updated image
+#         aws ecs update-service \
+#           --cluster ${{ steps.terraform-outputs.outputs.ecs_cluster_name }} \
+#           --service ${{ steps.terraform-outputs.outputs.ecs_service_name }} \
+#           --force-new-deployment
+
+#         # Wait for deployment to complete
+#         aws ecs wait services-stable \
+#           --cluster ${{ steps.terraform-outputs.outputs.ecs_cluster_name }} \
+#           --services ${{ steps.terraform-outputs.outputs.ecs_service_name }}
