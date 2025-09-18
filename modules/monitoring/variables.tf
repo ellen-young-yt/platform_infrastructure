@@ -56,3 +56,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "data_lake_bucket_id" {
+  description = "ID of the data lake S3 bucket from S3 module"
+  type        = string
+  default     = null
+}

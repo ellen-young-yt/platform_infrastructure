@@ -1,5 +1,12 @@
+#
+# ===== SNOWFLAKE CROSS-ACCOUNT ACCESS =====
+# Resources for allowing Snowflake to access AWS resources
+#
+
+# Generate a unique external ID for secure cross-account role assumption
 resource "random_uuid" "snowflake_external_id" {}
 
+# IAM role that Snowflake can assume to access AWS resources
 resource "aws_iam_role" "snowflake" {
   name = "${var.project_name}-${var.environment}-snowflake-role"
 
@@ -21,9 +28,12 @@ resource "aws_iam_role" "snowflake" {
     ]
   })
 
-  tags = var.tags
+  tags = merge(var.tags, {
+    Purpose = "Snowflake cross-account access"
+  })
 }
 
+# S3 access policy for Snowflake role - allows reading from data lake and writing to staging area
 resource "aws_iam_role_policy" "snowflake_s3_access" {
   name = "${var.project_name}-${var.environment}-snowflake-s3-policy"
   role = aws_iam_role.snowflake.id
@@ -45,6 +55,7 @@ resource "aws_iam_role_policy" "snowflake_s3_access" {
         ]
       },
       {
+        # Allow KMS decryption for S3 objects
         Effect = "Allow"
         Action = [
           "kms:Decrypt"
@@ -57,6 +68,7 @@ resource "aws_iam_role_policy" "snowflake_s3_access" {
         }
       },
       {
+        # Allow Snowflake to write to staging area for data loading
         Effect = "Allow"
         Action = [
           "s3:PutObject",
@@ -70,6 +82,12 @@ resource "aws_iam_role_policy" "snowflake_s3_access" {
   })
 }
 
+#
+# ===== S3 STAGING AREA SETUP =====
+# Creates dedicated staging area for Snowflake data operations
+#
+
+# Create staging prefix in data lake bucket for Snowflake operations
 resource "aws_s3_object" "snowflake_stage_prefix" {
   bucket  = var.data_lake_bucket_id
   key     = "snowflake-stage/"
@@ -80,6 +98,7 @@ resource "aws_s3_object" "snowflake_stage_prefix" {
   })
 }
 
+# Optional KMS access policy for Snowflake role (when encryption is enabled)
 resource "aws_iam_role_policy" "snowflake_kms_access" {
   count = var.enable_kms_encryption ? 1 : 0
 
@@ -106,6 +125,12 @@ resource "aws_iam_role_policy" "snowflake_kms_access" {
   })
 }
 
+#
+# ===== INTERNAL DATA LOADING INFRASTRUCTURE =====
+# AWS services (Lambda/ECS) that load data into Snowflake
+#
+
+# IAM role for internal AWS services that need to load data into Snowflake
 resource "aws_iam_role" "snowflake_loader" {
   name = "${var.project_name}-${var.environment}-snowflake-loader-role"
 
@@ -125,9 +150,12 @@ resource "aws_iam_role" "snowflake_loader" {
     ]
   })
 
-  tags = var.tags
+  tags = merge(var.tags, {
+    Purpose = "Snowflake data loader services"
+  })
 }
 
+# Comprehensive access policy for data loading services
 resource "aws_iam_role_policy" "snowflake_loader" {
   name = "${var.project_name}-${var.environment}-snowflake-loader-policy"
   role = aws_iam_role.snowflake_loader.id
@@ -149,13 +177,15 @@ resource "aws_iam_role_policy" "snowflake_loader" {
         ]
       },
       {
+        # Access to Snowflake credentials for authentication
         Effect = "Allow"
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/${var.environment}/snowflake/*"
+        Resource = var.snowflake_credentials_secret_arn
       },
       {
+        # CloudWatch logging permissions for monitoring
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -168,33 +198,15 @@ resource "aws_iam_role_policy" "snowflake_loader" {
   })
 }
 
-resource "aws_secretsmanager_secret" "snowflake_credentials" {
-  name                    = "${var.project_name}/${var.environment}/snowflake/credentials"
-  description             = "Snowflake connection credentials for ${var.environment}"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+#
+# ===== EXTERNAL ID MANAGEMENT =====
+# Manages the external ID used for secure cross-account access
+#
 
-  tags = merge(var.tags, {
-    Purpose = "Snowflake credentials"
-  })
-}
+# Snowflake credentials are managed by the secrets module
+# This module receives the secret ARN via var.snowflake_credentials_secret_arn
 
-resource "aws_secretsmanager_secret_version" "snowflake_credentials" {
-  secret_id = aws_secretsmanager_secret.snowflake_credentials.id
-  secret_string = jsonencode({
-    account   = var.snowflake_account
-    username  = var.snowflake_username
-    password  = var.snowflake_password
-    warehouse = var.snowflake_warehouse
-    database  = var.snowflake_database
-    schema    = var.snowflake_schema
-    role      = var.snowflake_role
-  })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
+# Secret to store the external ID for Snowflake cross-account role assumption
 resource "aws_secretsmanager_secret" "snowflake_external_id" {
   name                    = "${var.project_name}/${var.environment}/snowflake/external-id"
   description             = "External ID for Snowflake IAM role assumption"
@@ -205,6 +217,7 @@ resource "aws_secretsmanager_secret" "snowflake_external_id" {
   })
 }
 
+# Store the generated external ID in the secret
 resource "aws_secretsmanager_secret_version" "snowflake_external_id" {
   secret_id     = aws_secretsmanager_secret.snowflake_external_id.id
   secret_string = random_uuid.snowflake_external_id.result

@@ -110,7 +110,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ needs.determine-environment.outputs.aws_region }}
-      ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+      ENV: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -120,6 +120,15 @@ jobs:
         with:
           terraform_version: '1.9.8'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup environment
+        run: make setup
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -127,65 +136,55 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Terraform Init
-        run: |
-          # Use the exact path from setup-terraform action
-          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init -reconfigure
+      - name: Initialize and validate
+        run: make init ENV=${{ env.ENV }}
 
-      - name: Select Terraform Workspace
-        run: |
-          echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
-          terraform workspace select ${{ env.ENVIRONMENT }} || terraform workspace new ${{ env.ENVIRONMENT }}
-          echo "✅ Current workspace: $(terraform workspace show)"
+      - name: Run validation
+        run: make validate ENV=${{ env.ENV }}
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
+      - name: Create deployment plan
         id: plan
         run: |
-          echo "🚀 Planning deployment for ${{ env.ENVIRONMENT }} environment"
-          terraform plan \
-            -var-file=environments/common.tfvars \
-            -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
-            -input=false \
-            -detailed-exitcode \
-            -out=${{ env.ENVIRONMENT }}.tfplan
+          echo "🚀 Creating deployment plan for ${{ env.ENV }} environment"
+          make plan ENV=${{ env.ENV }}
+
+          # Check if plan file was created (indicating changes)
+          if [ -f "${{ env.ENV }}.tfplan" ]; then
+            echo "📋 Changes detected for ${{ env.ENV }}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No changes detected for ${{ env.ENV }}"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
         continue-on-error: true
 
       - name: Check Plan Status
         id: plan-status
         run: |
-          EXIT_CODE=${{ steps.plan.outputs.exitcode }}
-          if [ $EXIT_CODE -eq 1 ]; then
+          if [ "${{ steps.plan.outcome }}" == "failure" ]; then
             echo "❌ Terraform plan failed"
             exit 1
-          elif [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ No changes detected for ${{ env.ENVIRONMENT }}"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          elif [ $EXIT_CODE -eq 2 ]; then
-            echo "📋 Changes detected for ${{ env.ENVIRONMENT }}"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
+          # Pass through the has_changes status from plan step
+          echo "has_changes=${{ steps.plan.outputs.has_changes }}" >> $GITHUB_OUTPUT
+
       - name: Display Plan Summary
-        if: steps.plan-status.outputs.has_changes == 'true'
+        if: steps.plan.outputs.has_changes == 'true'
         run: |
-          echo "## 📋 Terraform Plan Summary (${{ env.ENVIRONMENT }})" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Terraform Plan Summary (${{ env.ENV }})" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          terraform show -no-color ${{ env.ENVIRONMENT }}.tfplan >> $GITHUB_STEP_SUMMARY
+          if [ -f "${{ env.ENV }}.tfplan" ]; then
+            terraform show -no-color ${{ env.ENV }}.tfplan >> $GITHUB_STEP_SUMMARY
+          fi
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Plan Artifact
-        if: steps.plan-status.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
+        if: steps.plan.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ENVIRONMENT }}-tfplan
-          path: ${{ env.ENVIRONMENT }}.tfplan
+          name: ${{ needs.determine-environment.outputs.environment }}-tfplan
+          path: ${{ env.ENV }}.tfplan
           retention-days: 1
 
   # Security scan
@@ -195,7 +194,7 @@ jobs:
     timeout-minutes: 10
     needs: determine-environment
     env:
-      ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+      ENV: ${{ needs.determine-environment.outputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -206,19 +205,13 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Setup environment
+        run: make setup
 
-      - name: Run Checkov Security Scan
+      - name: Run security scan
         run: |
-          echo "🔒 Running security scan for ${{ env.ENVIRONMENT }} environment"
-          checkov -d . \
-            --framework terraform \
-            --quiet \
-            --compact \
-            --download-external-modules true
+          echo "🔒 Running security scan for ${{ env.ENV }} environment"
+          make security-scan
 
   # Deploy infrastructure
   deploy-infrastructure:
@@ -244,6 +237,15 @@ jobs:
         with:
           terraform_version: '1.9.8'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup environment
+        run: make setup
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -255,21 +257,12 @@ jobs:
         if: needs.validate-infrastructure.outputs.has_changes == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ENVIRONMENT }}-tfplan
+          name: ${{ needs.determine-environment.outputs.environment }}-tfplan
 
-      - name: Terraform Init
-        run: |
-          # Use the exact path from setup-terraform action
-          chmod +x "${TERRAFORM_CLI_PATH}/terraform" || true
-          terraform init -reconfigure
+      - name: Initialize Terraform
+        run: make init ENV=${{ env.ENVIRONMENT }}
 
-      - name: Select Terraform Workspace
-        run: |
-          echo "🔄 Selecting workspace: ${{ env.ENVIRONMENT }}"
-          terraform workspace select ${{ env.ENVIRONMENT }}
-          echo "✅ Current workspace: $(terraform workspace show)"
-
-      - name: Terraform Apply
+      - name: Apply infrastructure changes
         id: apply
         run: |
           if [ -f "${{ env.ENVIRONMENT }}.tfplan" ]; then
@@ -277,11 +270,7 @@ jobs:
             terraform apply -input=false ${{ env.ENVIRONMENT }}.tfplan
           elif [ "${{ github.event.inputs.force_apply }}" == "true" ]; then
             echo "⚠️  Force applying to ${{ env.ENVIRONMENT }}..."
-            terraform apply \
-              -var-file=environments/common.tfvars \
-              -var-file=${{ needs.determine-environment.outputs.tfvars_file }} \
-              -input=false \
-              -auto-approve
+            make apply-auto ENV=${{ env.ENVIRONMENT }}
           else
             echo "❌ No plan file found and force apply not requested"
             exit 1
@@ -290,6 +279,8 @@ jobs:
       - name: Capture Terraform Outputs
         id: outputs
         run: |
+          echo "🔍 Capturing Terraform outputs..."
+          make outputs > outputs.txt 2>/dev/null || echo "No outputs available" > outputs.txt
           echo "monitoring_dashboard_url=$(terraform output -raw monitoring_dashboard_url 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
           echo "data_lake_bucket_arn=$(terraform output -raw data_lake_bucket_arn 2>/dev/null || echo 'N/A')" >> $GITHUB_OUTPUT
 
@@ -325,10 +316,8 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Setup environment
+        run: make setup
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -337,14 +326,10 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Run integration tests
+      - name: Run post-deployment verification
         run: |
-          echo "🧪 Running integration tests for ${{ env.ENV }} environment"
-          pytest tests/integration/ \
-            -v \
-            --tb=short \
-            -m "integration and not slow" \
-            --maxfail=1
+          echo "🧪 Running post-deployment verification for ${{ env.ENV }} environment"
+          make test-post-deploy ENV=${{ env.ENV }}
 
       - name: Deployment Success Summary
         if: success()

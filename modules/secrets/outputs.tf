@@ -1,11 +1,11 @@
-output "database_credentials_secret_arn" {
-  description = "ARN of the database credentials secret"
-  value       = aws_secretsmanager_secret.database_credentials.arn
+output "snowflake_credentials_secret_arn" {
+  description = "ARN of the Snowflake credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_credentials.arn
 }
 
-output "database_credentials_secret_name" {
-  description = "Name of the database credentials secret"
-  value       = aws_secretsmanager_secret.database_credentials.name
+output "snowflake_credentials_secret_name" {
+  description = "Name of the Snowflake credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_credentials.name
 }
 
 output "redis_credentials_secret_arn" {

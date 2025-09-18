@@ -11,12 +11,18 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          metrics = [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", "${var.project_name}-${var.environment}-airflow-webserver"],
-            [".", "MemoryUtilization", ".", "."],
-            ["AWS/ECS", "CPUUtilization", "ServiceName", "${var.project_name}-${var.environment}-metabase"],
-            [".", "MemoryUtilization", ".", "."],
-          ]
+          metrics = concat(
+            [
+              for service in var.ecs_service_names : [
+                ["AWS/ECS", "CPUUtilization", "ServiceName", service]
+              ]
+            ],
+            [
+              for service in var.ecs_service_names : [
+                ["AWS/ECS", "MemoryUtilization", "ServiceName", service]
+              ]
+            ]
+          )
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
@@ -32,11 +38,23 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          metrics = [
-            ["AWS/Lambda", "Duration", "FunctionName", "${var.project_name}-${var.environment}-model-predictor"],
-            [".", "Errors", ".", "."],
-            [".", "Invocations", ".", "."],
-          ]
+          metrics = concat(
+            [
+              for func in var.lambda_function_names : [
+                ["AWS/Lambda", "Duration", "FunctionName", func]
+              ]
+            ],
+            [
+              for func in var.lambda_function_names : [
+                ["AWS/Lambda", "Errors", "FunctionName", func]
+              ]
+            ],
+            [
+              for func in var.lambda_function_names : [
+                ["AWS/Lambda", "Invocations", "FunctionName", func]
+              ]
+            ]
+          )
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
@@ -52,10 +70,10 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
 
         properties = {
-          metrics = [
-            ["AWS/S3", "BucketSizeBytes", "BucketName", "${var.project_name}-${var.environment}-data-lake", "StorageType", "StandardStorage"],
-            ["AWS/S3", "NumberOfObjects", "BucketName", "${var.project_name}-${var.environment}-data-lake", "StorageType", "AllStorageTypes"],
-          ]
+          metrics = var.data_lake_bucket_id != null ? [
+            ["AWS/S3", "BucketSizeBytes", "BucketName", var.data_lake_bucket_id, "StorageType", "StandardStorage"],
+            ["AWS/S3", "NumberOfObjects", "BucketName", var.data_lake_bucket_id, "StorageType", "AllStorageTypes"],
+          ] : []
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name

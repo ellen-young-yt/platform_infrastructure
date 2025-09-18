@@ -45,7 +45,7 @@ class TestECSDbtModule:
         # Check for ECS cluster
         assert 'resource "aws_ecs_cluster" "dbt"' in content
         assert "containerInsights" in content
-        assert 'value = "enabled"' in content
+        assert 'var.environment == "prod" ? "enabled" : "disabled"' in content
 
         # Check for capacity providers
         assert 'resource "aws_ecs_cluster_capacity_providers" "dbt"' in content
@@ -77,7 +77,7 @@ class TestECSDbtModule:
 
         # Check secrets configuration
         assert "secrets = [" in content
-        assert re.search(r'name\s*=\s*"DATABASE_URL"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_CREDENTIALS"', content)
         assert re.search(r"valueFrom\s*=\s*var.database_secret_name", content)
         assert re.search(r'name\s*=\s*"DBT_PROFILES_CONFIG"', content)
         assert re.search(r"valueFrom\s*=\s*var.app_config_secret_name", content)

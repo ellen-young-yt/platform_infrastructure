@@ -9,6 +9,8 @@ from pathlib import Path
 # Add scripts directory to Python path for importing
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
+from environment import ExecutionEnvironment, ExecutionContext  # noqa: E402
+
 
 @pytest.fixture
 def project_root():
@@ -38,6 +40,24 @@ def test_project_name():
 def mock_aws_region():
     """Mock AWS region for testing."""
     return "us-east-2"
+
+
+@pytest.fixture
+def execution_environment():
+    """Get ExecutionEnvironment instance for testing."""
+    return ExecutionEnvironment()
+
+
+@pytest.fixture
+def is_ci_environment(execution_environment):
+    """Check if running in CI environment."""
+    return execution_environment.context == ExecutionContext.CI
+
+
+@pytest.fixture
+def is_container_environment(execution_environment):
+    """Check if running in container environment."""
+    return execution_environment.context in (ExecutionContext.CONTAINER, ExecutionContext.CI)
 
 
 @pytest.fixture
@@ -71,7 +91,9 @@ def environment(request):
 
 # Configure pytest to run unit tests by default, integration tests only when explicitly requested
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection based on directory."""
+    """Modify test collection based on directory and execution environment."""
+    env = ExecutionEnvironment()
+
     if config.getoption("--env") or "integration" in config.invocation_params.dir.name:
         # Running integration tests explicitly
         return
@@ -86,6 +108,9 @@ def pytest_collection_modifyitems(config, items):
         else:
             unit_tests.append(item)
 
+    # Skip integration tests in CI unless explicitly requested
+    if env.context == ExecutionContext.CI and not config.getoption("--env"):
+        items[:] = unit_tests
     # Only modify if we're running from root and didn't specify integration
-    if not config.getoption("--env") and integration_tests:
+    elif not config.getoption("--env") and integration_tests:
         items[:] = unit_tests

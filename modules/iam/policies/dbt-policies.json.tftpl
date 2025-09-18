@@ -1,0 +1,48 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath"
+    ],
+    "Resource": "arn:aws:ssm:*:*:parameter/${service_name}/*"
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "s3:GetObject",
+      "s3:ListBucket"
+    ],
+    "Resource": [
+      "${data_lake_bucket_arn}",
+      "${data_lake_bucket_arn}/*"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:ListBucket"
+    ],
+    "Resource": [
+      "${processed_data_bucket_arn}",
+      "${processed_data_bucket_arn}/*"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:ListBucket"
+    ],
+    "Resource": [
+      "${artifacts_bucket_arn}",
+      "${artifacts_bucket_arn}/*"
+    ]
+  }
+]

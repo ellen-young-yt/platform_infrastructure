@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        %{ for secret_arn in secret_arns ~}
+        "${secret_arn}"${secret_arn != secret_arns[length(secret_arns) - 1] ? "," : ""}
+        %{ endfor ~}
+      ]
+    }
+  ]
+}
