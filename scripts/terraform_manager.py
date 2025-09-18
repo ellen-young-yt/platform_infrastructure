@@ -124,18 +124,23 @@ class TerraformManager:
         log_success("Variables files are valid")
         return True
 
-    def terraform_init(self, environment: str) -> bool:
-        """Initialize Terraform."""
+    def terraform_init(self, environment: str, select_workspace: bool = True) -> bool:
+        """Initialize Terraform with optional workspace selection."""
         log_step(f"Initializing Terraform for {environment}...")
 
         success, _, _ = run_command(["terraform", "init"], cwd=self.root_dir, capture=False)
 
-        if success:
-            log_success("Terraform initialized successfully")
-        else:
+        if not success:
             log_error("Terraform initialization failed")
+            return False
 
-        return success
+        log_success("Terraform initialized successfully")
+
+        # Optionally select workspace after init
+        if select_workspace:
+            return self.select_terraform_workspace(environment)
+
+        return True
 
     def select_terraform_workspace(self, environment: str) -> bool:
         """Select or create Terraform workspace."""

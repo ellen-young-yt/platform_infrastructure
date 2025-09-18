@@ -36,6 +36,11 @@ def main() -> None:
         choices=VALID_ENVIRONMENTS,
         help="Environment to initialize",
     )
+    init_parser.add_argument(
+        "--no-workspace",
+        action="store_true",
+        help="Skip workspace selection after initialization",
+    )
 
     # Security scan
     subparsers.add_parser("security-scan", help="Run security scanning")
@@ -85,7 +90,8 @@ def main() -> None:
 
         elif args.command == "init":
             log_info(f"Initializing Terraform for {env_name}...")
-            success = manager.terraform_init(env_name)
+            select_workspace = not args.no_workspace
+            success = manager.terraform_init(env_name, select_workspace=select_workspace)
 
         elif args.command == "security-scan":
             success = manager.security_scan()

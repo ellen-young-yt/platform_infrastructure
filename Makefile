@@ -125,7 +125,7 @@ docs:
 
 ## init: Initialize Terraform (direct access)
 init:
-	@python scripts/manage.py init $(ENV)
+	@python scripts/manage.py init $(ENV) $(if $(NO_WORKSPACE),--no-workspace,)
 
 ## terraform: Pass-through to terraform command
 terraform:
