@@ -4,7 +4,7 @@ resource "aws_ecs_cluster" "dbt" {
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = var.environment == "prod" ? "enabled" : "disabled" #checkov:skip=CKV_AWS_65:Cost optimization - insights disabled for non-prod
   }
 
   tags = merge(var.tags, {
@@ -56,7 +56,7 @@ resource "aws_ecs_task_definition" "dbt" {
 
       secrets = [
         {
-          name      = "DATABASE_URL"
+          name      = "SNOWFLAKE_CREDENTIALS"
           valueFrom = var.database_secret_name
         },
         {

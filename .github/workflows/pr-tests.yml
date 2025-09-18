@@ -12,86 +12,23 @@ on:
       - 'pyproject.toml'
       - '.pre-commit-config.yaml'
       - 'environments/**'
+      - 'Makefile'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Fast linting and formatting checks
-  lint-and-format:
-    name: Code Quality
+  # Determine target environment for the PR
+  determine-environment:
+    name: Determine Target Environment
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      tfvars_file: ${{ steps.set-env.outputs.tfvars_file }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run black (code formatting)
-        run: black --check --diff .
-
-      - name: Run flake8 (linting)
-        run: flake8 .
-
-      - name: Run mypy (type checking)
-        run: mypy scripts/ --ignore-missing-imports
-
-  # Terraform validation and security
-  terraform-checks:
-    name: Terraform Validation
-    runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.9.8'
-
-      - name: Install terraform-docs
-        run: |
-          curl -Lo terraform-docs.tar.gz https://github.com/terraform-docs/terraform-docs/releases/download/v0.17.0/terraform-docs-v0.17.0-$(uname)-amd64.tar.gz
-          tar -xzf terraform-docs.tar.gz
-          chmod +x terraform-docs
-          sudo mv terraform-docs /usr/local/bin/terraform-docs
-
-      - name: Setup tflint
-        uses: terraform-linters/setup-tflint@v4
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Init
-        run: terraform init -reconfigure
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Configure AWS credentials
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Determine Target Environment
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        id: determine-env
+      - name: Set target environment
+        id: set-env
         run: |
           # Determine target environment based on PR target branch
           case "${{ github.base_ref }}" in
@@ -119,54 +56,130 @@ jobs:
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "tfvars_file=$TFVARS_FILE" >> $GITHUB_OUTPUT
 
-      - name: Terraform Plan (validation only)
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        run: |
-          echo "🔄 Selecting workspace for ${{ steps.determine-env.outputs.environment }}"
-          terraform workspace select ${{ steps.determine-env.outputs.environment }} || terraform workspace new ${{ steps.determine-env.outputs.environment }}
-          echo "🚀 Planning for ${{ steps.determine-env.outputs.environment }} environment (validation only)"
-          terraform plan -var-file=environments/common.tfvars -var-file=${{ steps.determine-env.outputs.tfvars_file }} -input=false -detailed-exitcode
+  # Code quality checks
+  code-quality:
+    name: Code Quality & Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Terraform Documentation Check
-        run: terraform-docs markdown . --output-check
-
-      - name: Terraform Lint (TFLint)
-        run: |
-          tflint --init
-          tflint --only=terraform_deprecated_interpolation \
-                 --only=terraform_deprecated_index \
-                 --only=terraform_unused_declarations \
-                 --only=terraform_comment_syntax \
-                 --only=terraform_documented_outputs \
-                 --only=terraform_typed_variables \
-                 --only=terraform_module_pinned_source \
-                 --only=terraform_naming_convention
-
-      - name: Set up Python for Checkov
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Setup environment
+        run: make setup
 
-      - name: Run Checkov Security Scan (comprehensive)
-        run: |
-          checkov -d . \
-            --framework terraform \
-            --quiet \
-            --compact \
-            --download-external-modules true
+      - name: Format and lint code
+        run: make lint
 
-  # Unit tests (fast, no AWS dependencies)
-  unit-tests:
-    name: Unit Tests
+      - name: Check formatting
+        run: |
+          # Verify no changes were made by formatting
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "❌ Code formatting changes required"
+            git diff
+            exit 1
+          else
+            echo "✅ Code is properly formatted"
+          fi
+
+  # Terraform validation using centralized make commands
+  terraform-validation:
+    name: Terraform Validation
     runs-on: ubuntu-latest
+    needs: determine-environment
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup environment
+        run: make setup
+
+      - name: Run validation checks
+        run: make validate ENV=${{ needs.determine-environment.outputs.environment }}
+
+      - name: Configure AWS credentials for plan validation
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Terraform Plan (validation only)
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        run: make plan ENV=${{ needs.determine-environment.outputs.environment }}
+
+      - name: Security scan
+        run: make security-scan
+
+  # CI-safe tests using centralized make commands
+  ci-tests:
+    name: CI Tests
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup environment
+        run: make setup
+
+      - name: Configure AWS credentials (if available)
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Run CI-safe tests
+        run: make test-ci ENV=${{ needs.determine-environment.outputs.environment }}
+
+      - name: Run integration tests (if infrastructure exists)
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        run: make test-integration ENV=${{ needs.determine-environment.outputs.environment }}
+
+      - name: Integration test status
+        if: ${{ env.AWS_ACCESS_KEY_ID == '' }}
+        run: |
+          echo "ℹ️  Integration tests skipped - no AWS credentials configured"
+          echo "This is expected for PRs from forks or when AWS credentials are not available"
+
+  # Cross-platform testing leveraging make setup
+  cross-platform-tests:
+    name: Cross-Platform Tests
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.12']
     steps:
       - name: Checkout code
@@ -178,113 +191,33 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Setup environment
+        run: make setup
 
-      - name: Run unit tests
-        run: |
-          pytest tests/unit/ \
-            -v \
-            --tb=short \
-            --cov=scripts \
-            --cov-report=xml \
-            --cov-report=term-missing
-
-  # Integration tests (require AWS)
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Determine Target Environment for Integration Tests
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        id: determine-test-env
-        run: |
-          # Determine target environment based on PR target branch
-          case "${{ github.base_ref }}" in
-            "main")
-              ENVIRONMENT="prod"
-              ;;
-            "staging")
-              ENVIRONMENT="staging"
-              ;;
-            "develop")
-              ENVIRONMENT="dev"
-              ;;
-            *)
-              # Default to dev for feature branches or unknown targets
-              ENVIRONMENT="dev"
-              ;;
-          esac
-
-          echo "🧪 Testing against: $ENVIRONMENT environment"
-          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
-
-      - name: Configure AWS credentials (if available)
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Run integration tests
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        run: |
-          echo "🧪 Running integration tests against ${{ steps.determine-test-env.outputs.environment }} environment"
-          pytest tests/integration/ \
-            -v \
-            --tb=short \
-            -m "integration and not slow" \
-            --maxfail=3
-        env:
-          ENV: ${{ steps.determine-test-env.outputs.environment }}
-
-      - name: Skip integration tests (no AWS credentials)
-        if: ${{ env.AWS_ACCESS_KEY_ID == '' }}
-        run: |
-          echo "⚠️  Integration tests skipped - no AWS credentials configured"
-          echo "To enable integration tests:"
-          echo "1. Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to repository secrets"
-          echo "2. Or add 'test-integration' label to this PR"
+      - name: Run unit tests only (cross-platform)
+        run: make test-unit
 
   # Summary job that depends on all others
   ci-success:
-    name: CI Success
+    name: CI Pipeline Success
     runs-on: ubuntu-latest
     needs:
-      - lint-and-format
-      - terraform-checks
-      - unit-tests
-      - integration-tests
+      - determine-environment
+      - code-quality
+      - terraform-validation
+      - ci-tests
+      - cross-platform-tests
     steps:
-      - name: CI Pipeline Success
+      - name: All checks passed
         run: |
           echo "🎉 All CI checks passed!"
-          echo "✅ Code formatting and linting"
+          echo "✅ Code quality and formatting"
           echo "✅ Terraform validation and security"
-          echo "✅ Unit tests across Python versions"
-          echo "✅ Pre-commit hooks"
+          echo "✅ CI-safe tests (unit + validation + integration)"
+          echo "✅ Cross-platform compatibility"
+          echo ""
+          echo "Target environment: ${{ needs.determine-environment.outputs.environment }}"
+          echo "Ready for merge! 🚀"
 
 
 

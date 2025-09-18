@@ -36,17 +36,40 @@ variable "common_tags" {
   default     = {}
 }
 
+# Secret ARN references - passed from root module
+variable "snowflake_credentials_secret_arn" {
+  description = "ARN of the Snowflake credentials secret"
+  type        = string
+  default     = null
+}
+
+variable "app_config_secret_arn" {
+  description = "ARN of the application config secret"
+  type        = string
+  default     = null
+}
+
+variable "api_keys_secret_arn" {
+  description = "ARN of the API keys secret"
+  type        = string
+  default     = null
+}
+
+# S3 bucket ARN references - passed from root module
 variable "data_lake_bucket_arn" {
   description = "ARN of the data lake S3 bucket"
   type        = string
+  default     = null
 }
 
 variable "processed_data_bucket_arn" {
   description = "ARN of the processed data S3 bucket"
   type        = string
+  default     = null
 }
 
 variable "artifacts_bucket_arn" {
   description = "ARN of the artifacts S3 bucket"
   type        = string
+  default     = null
 }

@@ -1,12 +1,12 @@
 
-resource "aws_secretsmanager_secret" "database_credentials" {
-  name                    = "${var.project_name}/${var.environment}/database/credentials"
-  description             = "Database credentials for ${var.environment} environment"
+resource "aws_secretsmanager_secret" "snowflake_credentials" {
+  name                    = "${var.project_name}/${var.environment}/snowflake/credentials"
+  description             = "Snowflake credentials for ${var.environment} environment"
   recovery_window_in_days = var.environment == "prod" ? 30 : 0
   kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
 
   tags = merge(var.tags, {
-    Purpose = "Database credentials"
+    Purpose = "Snowflake credentials"
   })
 }
 
@@ -91,7 +91,7 @@ resource "aws_iam_role_policy" "secrets_access" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          aws_secretsmanager_secret.database_credentials.arn,
+          aws_secretsmanager_secret.snowflake_credentials.arn,
           aws_secretsmanager_secret.redis_credentials.arn,
           aws_secretsmanager_secret.api_keys.arn,
           aws_secretsmanager_secret.app_config.arn
@@ -138,7 +138,7 @@ resource "aws_iam_role_policy" "secrets_rotation" {
           "secretsmanager:UpdateSecretVersionStage"
         ]
         Resource = [
-          aws_secretsmanager_secret.database_credentials.arn,
+          aws_secretsmanager_secret.snowflake_credentials.arn,
           aws_secretsmanager_secret.redis_credentials.arn
         ]
       },

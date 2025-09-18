@@ -20,7 +20,7 @@ output "ecs_task_role_name" {
   value       = aws_iam_role.ecs_task_role.name
 }
 
-output "ecs_custom_policy_arn" {
-  description = "ARN of the ECS custom policy"
-  value       = aws_iam_policy.ecs_custom_policy.arn
+output "ecs_task_policy_arn" {
+  description = "ARN of the ECS task policy"
+  value       = aws_iam_policy.ecs_task_policy.arn
 }

@@ -81,7 +81,11 @@ module "snowflake_integration" {
   project_name         = var.project_name
   data_lake_bucket_id  = module.s3_data_lake.data_lake_bucket_id
   data_lake_bucket_arn = module.s3_data_lake.data_lake_bucket_arn
-  tags                 = local.common_tags
+
+  # Pass direct module reference for secret ARN
+  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+
+  tags = local.common_tags
 }
 
 # IAM for Airflow
@@ -94,10 +98,17 @@ module "iam_airflow" {
   project_name = var.project_name
   common_tags  = local.common_tags
 
-  # Airflow doesn't need data lake buckets but inherits project-based S3 access
+  # Pass direct module references for secrets
+  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  app_config_secret_arn            = module.secrets.app_config_secret_arn
+  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
+
+  # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
   processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
   artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
+
+  depends_on = [module.s3_data_lake, module.secrets]
 }
 
 module "ecs_airflow" {
@@ -132,10 +143,17 @@ module "iam_metabase" {
   project_name = var.project_name
   common_tags  = local.common_tags
 
-  # Metabase doesn't need S3 buckets but we have to pass them
+  # Pass direct module references for secrets
+  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  app_config_secret_arn            = module.secrets.app_config_secret_arn
+  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
+
+  # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
   processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
   artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
+
+  depends_on = [module.secrets]
 }
 
 module "ecs_metabase" {
@@ -188,7 +206,7 @@ module "ecs_dbt" {
   tags                  = local.common_tags
 
   # Secrets integration
-  database_secret_name   = module.secrets.database_credentials_secret_name
+  database_secret_name   = module.secrets.snowflake_credentials_secret_name
   app_config_secret_name = module.secrets.app_config_secret_name
   api_keys_secret_name   = module.secrets.api_keys_secret_name
 }
@@ -214,6 +232,9 @@ module "monitoring" {
     "/ecs/${var.project_name}-${var.environment}-${var.service_name}"
   ]
 
+  # Pass direct module reference for S3 bucket
+  data_lake_bucket_id = module.s3_data_lake.data_lake_bucket_id
+
   tags = local.common_tags
 }
 
@@ -226,8 +247,19 @@ module "iam" {
   project_name = var.project_name
   common_tags  = local.common_tags
 
-  # S3 bucket ARNs for DBT data access
+  # Pass direct module references for secrets
+  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  app_config_secret_arn            = module.secrets.app_config_secret_arn
+  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
+
+  # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
   processed_data_bucket_arn = module.s3_data_lake.processed_data_bucket_arn
   artifacts_bucket_arn      = module.s3_data_lake.artifacts_bucket_arn
+
+  # Dependencies - ensure other modules are created first
+  depends_on = [
+    module.s3_data_lake,
+    module.secrets
+  ]
 }

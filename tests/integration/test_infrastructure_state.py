@@ -70,7 +70,8 @@ class TestInfrastructureState:
     def test_secrets_manager_secrets_exist(self, environment, test_project_name):
         """Test that required secrets exist in Secrets Manager."""
         required_secrets = [
-            f"{test_project_name}/{environment}/database/credentials",
+            f"{test_project_name}/{environment}/snowflake/credentials",
+            f"{test_project_name}/{environment}/redis/credentials",
             f"{test_project_name}/{environment}/api/keys",
             f"{test_project_name}/{environment}/app/config",
         ]
@@ -214,12 +215,25 @@ class TestInfrastructureState:
         except ClientError as e:
             pytest.fail(f"Failed to describe ECS clusters: {e}")
 
-    def test_terraform_state_accessibility(self):
+    def test_terraform_state_accessibility(self, environment):
         """Test that Terraform state is accessible and valid."""
         # This test runs terraform show to verify state accessibility
         import subprocess
 
         try:
+            # Ensure we're in the correct terraform workspace
+            workspace_result = subprocess.run(
+                ["terraform", "workspace", "select", environment],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if workspace_result.returncode != 0:
+                pytest.fail(
+                    f"Failed to select terraform workspace '{environment}': \
+                        {workspace_result.stderr}"
+                )
+
             result = subprocess.run(
                 ["terraform", "show", "-json"],
                 capture_output=True,
