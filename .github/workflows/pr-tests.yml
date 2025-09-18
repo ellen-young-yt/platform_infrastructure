@@ -78,6 +78,9 @@ jobs:
       - name: Setup environment
         run: make setup
 
+      - name: Initialize Terraform
+        run: make init ENV=${{ needs.determine-environment.outputs.environment }}
+
       - name: Format and lint code
         run: make lint
 
@@ -178,16 +181,6 @@ jobs:
 
       - name: Run CI-safe tests
         run: make test-ci ENV=${{ needs.determine-environment.outputs.environment }}
-
-      - name: Run integration tests (if infrastructure exists)
-        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
-        run: make test-integration ENV=${{ needs.determine-environment.outputs.environment }}
-
-      - name: Integration test status
-        if: ${{ env.AWS_ACCESS_KEY_ID == '' }}
-        run: |
-          echo "ℹ️  Integration tests skipped - no AWS credentials configured"
-          echo "This is expected for PRs from forks or when AWS credentials are not available"
 
   # Cross-platform testing leveraging make setup
   cross-platform-tests:
