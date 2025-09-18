@@ -93,8 +93,6 @@ class TestManager:
         # Context-aware test behavior
         if self.env.context == ExecutionContext.CI:
             cmd.extend(["-v", "--tb=short", "--strict-markers"])
-            # Longer timeout for CI environments
-            cmd.extend(["--timeout=300"])
         elif self.env.context == ExecutionContext.CONTAINER:
             log_warning("Running in container - some integration tests may be skipped")
             cmd.extend(["-v", "--tb=short"])
