@@ -183,7 +183,7 @@ jobs:
         if: steps.plan.outputs.has_changes == 'true' || github.event.inputs.force_apply == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ENV }}-tfplan
+          name: ${{ needs.determine-environment.outputs.environment }}-tfplan
           path: ${{ env.ENV }}.tfplan
           retention-days: 1
 
@@ -257,7 +257,7 @@ jobs:
         if: needs.validate-infrastructure.outputs.has_changes == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ENVIRONMENT }}-tfplan
+          name: ${{ needs.determine-environment.outputs.environment }}-tfplan
 
       - name: Initialize Terraform
         run: make init ENV=${{ env.ENVIRONMENT }}
