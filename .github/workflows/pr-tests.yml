@@ -113,6 +113,9 @@ jobs:
       - name: Setup environment
         run: make setup
 
+      - name: Initialize Terraform
+        run: make init ENV=${{ needs.determine-environment.outputs.environment }}
+
       - name: Run validation checks
         run: make validate ENV=${{ needs.determine-environment.outputs.environment }}
 
