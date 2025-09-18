@@ -260,9 +260,7 @@ jobs:
           name: ${{ needs.determine-environment.outputs.environment }}-tfplan
 
       - name: Initialize Terraform
-        run: |
-          echo "🔧 Initializing Terraform for deployment (preserving workspace)..."
-          make init ENV=${{ env.ENVIRONMENT }} NO_WORKSPACE=1
+        run: make init ENV=${{ env.ENVIRONMENT }}
 
       - name: Apply infrastructure changes
         id: apply
