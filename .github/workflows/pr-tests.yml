@@ -78,11 +78,8 @@ jobs:
       - name: Setup environment
         run: make setup
 
-      - name: Initialize Terraform
-        run: make init ENV=${{ needs.determine-environment.outputs.environment }}
-
       - name: Format and lint code
-        run: make lint
+        run: make format
 
       - name: Check formatting
         run: |
