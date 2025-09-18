@@ -78,13 +78,13 @@ test-integration: setup
 test-coverage: setup
 	@python scripts/test_manager.py coverage
 
-## test-full: Run all available tests
-test-full: setup
-	@python scripts/test_manager.py all $(ENV)
-
 ## test-post-deploy: Run post-deployment verification
 test-post-deploy: setup
 	@python scripts/test_manager.py integration $(ENV)
+
+## test-full: Run all available tests
+test-full: setup
+	@python scripts/test_manager.py all $(ENV)
 
 #
 # === CODE QUALITY ===

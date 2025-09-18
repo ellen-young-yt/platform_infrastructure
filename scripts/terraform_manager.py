@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, TypedDict, NotRequired, Callable
 
 from utils import log_info, log_success, log_warning, log_error, log_step, run_command
-from environment import VALID_ENVIRONMENTS
+from environment import VALID_ENVIRONMENTS, ExecutionEnvironment, ExecutionContext
 
 
 @dataclass
@@ -41,6 +41,7 @@ class InfrastructureStatus(TypedDict):
     resources: List[str]
     outputs: Union[Dict[str, TerraformOutput], Dict[str, str]]
     error: NotRequired[str]
+    execution_environment: NotRequired[Dict[str, str]]
 
 
 class TerraformManager:
@@ -51,6 +52,7 @@ class TerraformManager:
         self.environment = environment
         self.root_dir = Path(__file__).parent.parent
         self.script_dir = Path(__file__).parent
+        self.env = ExecutionEnvironment()
 
     def validate_environment(self, environment: str) -> bool:
         """Validate environment name."""
@@ -208,6 +210,10 @@ class TerraformManager:
         var_files = self.get_var_files(environment)
         cmd = ["terraform", "plan"] + var_files
 
+        # Context-aware plan options
+        if self.env.context in (ExecutionContext.CI, ExecutionContext.CONTAINER):
+            cmd.append("-input=false")
+
         if plan_file:
             cmd.extend(["-out", plan_file])
 
@@ -217,6 +223,8 @@ class TerraformManager:
             log_success("Terraform plan created successfully")
         else:
             log_error("Terraform plan creation failed")
+            if self.env.context == ExecutionContext.NATIVE:
+                log_step("Tip: Check AWS credentials and network connectivity")
 
         return success
 
@@ -228,14 +236,26 @@ class TerraformManager:
 
         if plan_file:
             cmd = ["terraform", "apply"]
-            if auto_approve:
+            # Always auto-approve when using plan files in CI/Container
+            if auto_approve or self.env.context in (
+                ExecutionContext.CI,
+                ExecutionContext.CONTAINER,
+            ):
                 cmd.append("-auto-approve")
             cmd.append(plan_file)
         else:
             var_files = self.get_var_files(environment)
             cmd = ["terraform", "apply"] + var_files
-            if auto_approve:
+            if auto_approve or self.env.context in (
+                ExecutionContext.CI,
+                ExecutionContext.CONTAINER,
+            ):
                 cmd.append("-auto-approve")
+
+        # Add input=false for non-interactive environments
+        if self.env.context in (ExecutionContext.CI, ExecutionContext.CONTAINER):
+            if "-input=false" not in cmd:
+                cmd.insert(-1, "-input=false")
 
         success, _, _ = run_command(cmd, cwd=self.root_dir, capture=False)
 
@@ -243,6 +263,8 @@ class TerraformManager:
             log_success("Terraform apply completed successfully")
         else:
             log_error("Terraform apply failed")
+            if self.env.context == ExecutionContext.NATIVE:
+                log_step("Tip: Review the plan output above for specific error details")
 
         return success
 
@@ -250,15 +272,24 @@ class TerraformManager:
         """Destroy Terraform infrastructure."""
         log_step(f"Destroying Terraform infrastructure for {environment}...")
 
-        if not auto_approve:
+        # Skip interactive confirmation in CI/Container environments
+        if not auto_approve and self.env.context == ExecutionContext.NATIVE:
             log_warning("This will destroy ALL infrastructure in the environment!")
             response = input("Type 'yes' to proceed with destruction: ").strip()
             if response != "yes":
                 log_info("Destruction cancelled")
                 return True
+        elif self.env.context in (ExecutionContext.CI, ExecutionContext.CONTAINER):
+            log_warning(
+                "Running destroy in automated environment - proceeding without confirmation"
+            )
 
         var_files = self.get_var_files(environment)
         cmd = ["terraform", "destroy"] + var_files + ["-auto-approve"]
+
+        # Add input=false for non-interactive environments
+        if self.env.context in (ExecutionContext.CI, ExecutionContext.CONTAINER):
+            cmd.insert(-1, "-input=false")
 
         success, _, _ = run_command(cmd, cwd=self.root_dir, capture=False)
 
@@ -460,8 +491,20 @@ class TerraformManager:
     def clean_temporary_files(self) -> bool:
         """Clean up temporary files."""
         log_step("Cleaning up temporary files...")
+        log_step(f"Environment: {self.env.get_environment_info()}")
 
-        cleanup_patterns = [".terraform", "terraform.tfstate.backup", "crash.log", "*.tfplan"]
+        # More aggressive cleanup in CI/Container environments
+        if self.env.context in (ExecutionContext.CI, ExecutionContext.CONTAINER):
+            cleanup_patterns = [
+                ".terraform",
+                "terraform.tfstate.backup",
+                "crash.log",
+                "*.tfplan",
+                "*.terraform.lock.hcl",
+            ]
+        else:
+            # Preserve lock file in native development
+            cleanup_patterns = [".terraform", "terraform.tfstate.backup", "crash.log", "*.tfplan"]
 
         cleaned_items = []
 
@@ -486,8 +529,9 @@ class TerraformManager:
 
         if cleaned_items:
             log_success(f"Cleaned {len(cleaned_items)} items")
-            for item in cleaned_items:
-                log_info(f"  Removed: {item}")
+            if self.env.context == ExecutionContext.NATIVE:
+                for item in cleaned_items:
+                    log_info(f"  Removed: {item}")
         else:
             log_info("No temporary files found to clean")
 

@@ -9,7 +9,8 @@ Example: python simple_validate.py dev
 import sys
 import argparse
 from terraform_manager import TerraformManager
-from environment import VALID_ENVIRONMENTS
+from environment import VALID_ENVIRONMENTS, ExecutionEnvironment
+from utils import log_step
 
 
 def main() -> None:
@@ -23,14 +24,32 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Show environment context information
+    env = ExecutionEnvironment()
+    log_step(f"Validation Environment: {env.get_environment_info()}")
+
     # Create manager and run validation
     manager = TerraformManager(args.environment)
 
     if manager.validate_prerequisites(args.environment):
-        print("\nValidation completed successfully!")
+        print("\n✅ Validation completed successfully!")
         sys.exit(0)
     else:
-        print("\nValidation failed!")
+        print("\n❌ Validation failed!")
+
+        # Provide context-specific troubleshooting tips
+        from environment import ExecutionContext
+
+        if env.context == ExecutionContext.NATIVE:
+            print("\n💡 Troubleshooting tips:")
+            print("  - Ensure AWS credentials are configured: aws configure")
+            print("  - Check Terraform installation: terraform --version")
+            print("  - Verify network connectivity to AWS")
+        elif env.context == ExecutionContext.CI:
+            print("\n💡 CI troubleshooting:")
+            print("  - Check AWS credentials in secrets")
+            print("  - Verify workflow environment variables")
+
         sys.exit(1)
 
 

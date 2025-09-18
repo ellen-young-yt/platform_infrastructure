@@ -9,6 +9,7 @@ and coverage reporting. Provides cross-platform pytest execution.
 from pathlib import Path
 
 from utils import log_success, log_warning, log_error, log_step, run_command
+from environment import ExecutionEnvironment, ExecutionContext
 
 
 class TestManager:
@@ -19,6 +20,7 @@ class TestManager:
         self.root_dir = Path(__file__).parent.parent
         self.script_dir = Path(__file__).parent
         self.tests_dir = self.root_dir / "tests"
+        self.env = ExecutionEnvironment()
 
     def check_pytest_available(self) -> bool:
         """Check if pytest is available."""
@@ -31,6 +33,7 @@ class TestManager:
     def run_unit_tests(self, verbose: bool = True, coverage: bool = False) -> bool:
         """Run unit tests with optional coverage."""
         log_step("Running unit tests...")
+        log_step(f"Environment: {self.env.get_environment_info()}")
 
         if not self.check_pytest_available():
             return True  # Don't fail if pytest not available
@@ -41,14 +44,23 @@ class TestManager:
             log_warning("No unit tests found in tests/unit/")
             return True
 
-        # Build pytest command
+        # Build pytest command with context-aware options
         cmd = ["pytest", "tests/unit/"]
 
-        if verbose:
+        # Context-aware verbosity and behavior
+        if self.env.context == ExecutionContext.CI:
+            cmd.extend(["-v", "--tb=short", "--strict-markers"])
+            if coverage:
+                cmd.extend(["--cov=scripts", "--cov-report=term-missing", "--cov-fail-under=80"])
+        elif verbose:
             cmd.append("-v")
 
-        if coverage:
+        if coverage and self.env.context != ExecutionContext.CI:
             cmd.extend(["--cov=scripts", "--cov-report=term-missing"])
+
+        # Add fail-fast in CI for quicker feedback
+        if self.env.context == ExecutionContext.CI:
+            cmd.append("-x")
 
         success, _, _ = run_command(cmd, cwd=self.root_dir, capture=False)
 
@@ -56,12 +68,15 @@ class TestManager:
             log_success("Unit tests completed successfully")
         else:
             log_error("Unit tests failed")
+            if self.env.context == ExecutionContext.NATIVE:
+                log_step("Tip: Run with coverage using 'make test-coverage'")
 
         return success
 
     def run_integration_tests(self, environment: str = "dev", verbose: bool = True) -> bool:
         """Run integration tests for specified environment."""
         log_step(f"Running integration tests for {environment}...")
+        log_step(f"Environment: {self.env.get_environment_info()}")
 
         if not self.check_pytest_available():
             return True  # Don't fail if pytest not available
@@ -72,11 +87,23 @@ class TestManager:
             log_warning("No integration tests found in tests/integration/")
             return True
 
-        # Build pytest command with environment
+        # Build pytest command with environment and context-aware options
         cmd = ["pytest", "tests/integration/", f"--env={environment}"]
 
-        if verbose:
+        # Context-aware test behavior
+        if self.env.context == ExecutionContext.CI:
+            cmd.extend(["-v", "--tb=short", "--strict-markers"])
+            # Longer timeout for CI environments
+            cmd.extend(["--timeout=300"])
+        elif self.env.context == ExecutionContext.CONTAINER:
+            log_warning("Running in container - some integration tests may be skipped")
+            cmd.extend(["-v", "--tb=short"])
+        elif verbose:
             cmd.append("-v")
+
+        # Skip tests that require host resources in containers
+        if self.env.context in (ExecutionContext.CONTAINER, ExecutionContext.CI):
+            cmd.extend(["-m", "not requires_host"])
 
         success, _, _ = run_command(cmd, cwd=self.root_dir, capture=False)
 
@@ -84,6 +111,8 @@ class TestManager:
             log_success(f"Integration tests for {environment} completed successfully")
         else:
             log_error(f"Integration tests for {environment} failed")
+            if self.env.context == ExecutionContext.NATIVE:
+                log_step("Tip: Ensure AWS credentials are configured for integration tests")
 
         return success
 

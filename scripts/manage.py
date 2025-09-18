@@ -8,7 +8,7 @@ Usage: python simple_manage.py <command>
 import sys
 import argparse
 from terraform_manager import TerraformManager
-from environment import VALID_ENVIRONMENTS
+from environment import VALID_ENVIRONMENTS, environment
 from utils import setup_environment, format_all, lint_all, generate_docs, log_error, log_info
 
 
@@ -67,21 +67,25 @@ def main() -> None:
 
     try:
         # Get environment for commands that need it
-        environment = getattr(args, "environment", "dev")
-        manager = TerraformManager(environment)
+        env_name = getattr(args, "environment", "dev")
+        manager = TerraformManager(env_name)
 
         # Execute appropriate command
         if args.command == "plan":
-            log_info(f"Creating Terraform plan for {environment}...")
+            log_info(f"Creating Terraform plan for {env_name}...")
+            # Only generate plan file in CI context (needed for deployment workflow)
+            from environment import ExecutionContext
+
+            plan_file = f"{env_name}.tfplan" if environment.context == ExecutionContext.CI else None
             success = (
-                manager.terraform_init(environment)
-                and manager.select_terraform_workspace(environment)
-                and manager.terraform_plan(environment)
+                manager.terraform_init(env_name)
+                and manager.select_terraform_workspace(env_name)
+                and manager.terraform_plan(env_name, plan_file)
             )
 
         elif args.command == "init":
-            log_info(f"Initializing Terraform for {environment}...")
-            success = manager.terraform_init(environment)
+            log_info(f"Initializing Terraform for {env_name}...")
+            success = manager.terraform_init(env_name)
 
         elif args.command == "security-scan":
             success = manager.security_scan()
