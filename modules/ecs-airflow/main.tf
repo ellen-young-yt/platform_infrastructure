@@ -3,7 +3,7 @@ resource "aws_ecs_cluster" "airflow" {
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = var.environment == "prod" ? "enabled" : "disabled" #checkov:skip=CKV_AWS_65:Cost optimization - insights disabled for non-prod
   }
 
   tags = merge(var.tags, {
@@ -23,9 +23,6 @@ resource "aws_ecs_cluster_capacity_providers" "airflow" {
   }
 }
 
-# IAM roles are now managed centrally - see main.tf iam_airflow module
-
-# CloudWatch Log Group managed by monitoring module
 locals {
   log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
 }

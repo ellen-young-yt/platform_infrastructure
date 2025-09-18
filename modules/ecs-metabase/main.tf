@@ -3,7 +3,7 @@ resource "aws_ecs_cluster" "metabase" {
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = var.environment == "prod" ? "enabled" : "disabled" #checkov:skip=CKV_AWS_65:Cost optimization - insights disabled for non-prod
   }
 
   tags = merge(var.tags, {

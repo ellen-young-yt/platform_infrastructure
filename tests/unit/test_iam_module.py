@@ -48,41 +48,40 @@ class TestIAMModule:
 
         # Check for policy attachments
         assert 'resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy"' in content
-        assert 'resource "aws_iam_role_policy_attachment" "ecs_custom_policy"' in content
+        assert 'resource "aws_iam_role_policy_attachment" "ecs_execution_policy"' in content
+        assert 'resource "aws_iam_role_policy_attachment" "ecs_task_policy"' in content
 
-        # Check for custom policy
-        assert 'resource "aws_iam_policy" "ecs_custom_policy"' in content
+        # Check for custom policies
+        assert 'resource "aws_iam_policy" "ecs_execution_policy"' in content
+        assert 'resource "aws_iam_policy" "ecs_task_policy"' in content
 
     def test_iam_base_policies(self, main_tf_path):
         """Test base policies are properly configured."""
         content = main_tf_path.read_text()
 
-        # Check base policies in locals
-        assert "base_policies = [" in content
-        assert "logs:CreateLogGroup" in content
-        assert "logs:CreateLogStream" in content
-        assert "logs:PutLogEvents" in content
-        assert "ecr:GetAuthorizationToken" in content
-        assert "ecr:BatchGetImage" in content
+        # Check base policies are loaded from JSON file
+        assert (
+            'base_policies = jsondecode(file("${path.module}/policies/base-policies.json"))'
+            in content
+        )
 
     def test_iam_service_specific_policies(self, main_tf_path):
         """Test service-specific policies are defined."""
         content = main_tf_path.read_text()
 
-        # Check DBT policies
-        assert "dbt_policies = [" in content
-        assert "ssm:GetParameter" in content
-        assert "secretsmanager:GetSecretValue" in content
-        assert "s3:GetObject" in content
-        assert "s3:PutObject" in content
-
-        # Check Airflow policies
-        assert "airflow_policies = [" in content
-        assert "kms:Decrypt" in content
-        assert "kms:GenerateDataKey" in content
-
-        # Check Metabase policies
-        assert "metabase_policies = [" in content
+        # Check DBT policies are loaded from template file
+        assert (
+            'dbt_policies = jsondecode(templatefile("${path.module}/policies/dbt-policies.json.tftpl"'  # noqa: E501
+            in content
+        )
+        assert (
+            'airflow_policies = jsondecode(templatefile("${path.module}/policies/airflow-policies.json.tftpl"'  # noqa: E501
+            in content
+        )
+        assert (
+            'metabase_policies = jsondecode(templatefile("${path.module}/policies/metabase-policies.json.tftpl"'  # noqa: E501
+            in content
+        )
 
     def test_iam_role_trust_policies(self, main_tf_path):
         """Test IAM roles have correct trust policies."""
@@ -97,11 +96,9 @@ class TestIAMModule:
         """Test execution role has AWS managed policy attached."""
         content = main_tf_path.read_text()
 
-        # Check AWS managed policy attachment
-        assert (
-            'policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"'
-            in content
-        )
+        # Check AWS managed policy attachment using data source
+        assert 'data "aws_iam_policy" "ecs_task_execution_role_policy"' in content
+        assert "policy_arn = data.aws_iam_policy.ecs_task_execution_role_policy.arn" in content
 
     def test_iam_custom_policy_configuration(self, main_tf_path):
         """Test custom policy is properly configured."""
@@ -153,16 +150,12 @@ class TestIAMModule:
         """Test IAM resources follow naming convention."""
         content = main_tf_path.read_text()
 
-        # Check role naming
-        assert re.search(
-            r'name\s*=\s*"\$\{var\.service_name\}-\$\{var\.environment\}-execution-role"', content
-        )
-        assert re.search(
-            r'name\s*=\s*"\$\{var\.service_name\}-\$\{var\.environment\}-task-role"', content
-        )
-        assert re.search(
-            r'name\s*=\s*"\$\{var\.service_name\}-\$\{var\.environment\}-custom-policy"', content
-        )
+        # Check role naming conventions
+        assert 'name = "${var.service_name}-${var.environment}-execution-role"' in content
+        assert 'name = "${var.service_name}-${var.environment}-task-role"' in content
+        # Check policy naming conventions (execution policy only created for DBT services)
+        assert 'name        = "${var.service_name}-${var.environment}-execution-policy"' in content
+        assert 'name        = "${var.service_name}-${var.environment}-task-policy"' in content
 
     def test_iam_resource_tagging(self, main_tf_path):
         """Test IAM resources are properly tagged."""
@@ -177,8 +170,7 @@ class TestIAMModule:
         """Test S3 bucket permissions are properly configured."""
         content = main_tf_path.read_text()
 
-        # Check S3 permissions use bucket ARN variables
-        assert "var.data_lake_bucket_arn" in content
-        assert "var.processed_data_bucket_arn" in content
-        assert "var.artifacts_bucket_arn" in content
-        assert '"${var.data_lake_bucket_arn}/*"' in content
+        # Check S3 permissions use bucket ARN variables in template files
+        assert "data_lake_bucket_arn      = var.data_lake_bucket_arn" in content
+        assert "processed_data_bucket_arn = var.processed_data_bucket_arn" in content
+        assert "artifacts_bucket_arn      = var.artifacts_bucket_arn" in content

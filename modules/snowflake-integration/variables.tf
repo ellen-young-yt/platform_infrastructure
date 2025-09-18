@@ -1,10 +1,14 @@
+#
+# ===== CORE CONFIGURATION =====
+#
+
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (dev, staging, prod)"
   type        = string
 }
 
 variable "project_name" {
-  description = "Name of the project"
+  description = "Name of the project (used in resource naming)"
   type        = string
 }
 
@@ -17,6 +21,10 @@ variable "data_lake_bucket_arn" {
   description = "ARN of the data lake S3 bucket"
   type        = string
 }
+
+#
+# ===== SNOWFLAKE CROSS-ACCOUNT CONFIGURATION =====
+#
 
 # tflint-ignore: terraform_unused_declarations
 variable "snowflake_account_id" {
@@ -33,49 +41,12 @@ variable "snowflake_external_id" {
   sensitive   = true
 }
 
-variable "snowflake_account" {
-  description = "Snowflake account identifier"
-  type        = string
-  default     = ""
-}
+# Snowflake connection credentials are managed by the secrets module
+# This module only handles AWS infrastructure for Snowflake access
 
-variable "snowflake_username" {
-  description = "Snowflake username"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "snowflake_password" {
-  description = "Snowflake password"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "snowflake_warehouse" {
-  description = "Snowflake warehouse name"
-  type        = string
-  default     = "COMPUTE_WH"
-}
-
-variable "snowflake_database" {
-  description = "Snowflake database name"
-  type        = string
-  default     = ""
-}
-
-variable "snowflake_schema" {
-  description = "Snowflake schema name"
-  type        = string
-  default     = "PUBLIC"
-}
-
-variable "snowflake_role" {
-  description = "Snowflake role name"
-  type        = string
-  default     = "ACCOUNTADMIN"
-}
+#
+# ===== ENCRYPTION CONFIGURATION =====
+#
 
 variable "enable_kms_encryption" {
   description = "Enable KMS encryption for S3 objects accessed by Snowflake"
@@ -89,8 +60,21 @@ variable "kms_key_arn" {
   default     = ""
 }
 
+#
+# ===== COMMON CONFIGURATION =====
+#
+
 variable "tags" {
   description = "A map of tags to add to all resources"
   type        = map(string)
   default     = {}
+}
+
+#
+# ===== SECRETS INTEGRATION =====
+#
+
+variable "snowflake_credentials_secret_arn" {
+  description = "ARN of the Snowflake credentials secret from secrets module (required)"
+  type        = string
 }

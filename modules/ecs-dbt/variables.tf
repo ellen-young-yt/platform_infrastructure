@@ -62,7 +62,7 @@ variable "tags" {
 }
 
 variable "database_secret_name" {
-  description = "Name of the database credentials secret in Secrets Manager"
+  description = "Name of the Snowflake credentials secret in Secrets Manager"
   type        = string
 }
 
