@@ -5,6 +5,10 @@ Environment detection and configuration for cross-platform compatibility.
 Provides centralized environment detection using enums for type safety and extensibility.
 Handles platform detection (Windows, Linux, macOS) and execution context detection
 (native, container, CI) to provide appropriate configuration for each environment.
+
+DESIGN PRINCIPLE: Pure configuration - no side effects, no I/O operations, no user interaction.
+This module provides configuration data and detection logic only. All operations and
+workflows should be handled by utils.py or other operational modules.
 """
 
 import os
@@ -47,7 +51,6 @@ class ExecutionEnvironment:
         # Detection (computed once at initialization)
         self.platform = self._detect_platform()
         self.context = self._detect_execution_context()
-        self.python_executable = self._detect_python_executable()
 
         # Paths (allow root_dir injection for testing)
         self._root_dir = root_dir or Path(__file__).parent.parent
@@ -91,21 +94,6 @@ class ExecutionEnvironment:
 
         return ExecutionContext.NATIVE
 
-    def _detect_python_executable(self) -> str:
-        """Find appropriate Python executable for the current context."""
-        if self.context in (ExecutionContext.CONTAINER, ExecutionContext.CI):
-            # In containers and CI, prefer system Python
-            for candidate in ["python3", "python"]:
-                try:
-                    result = subprocess.run(
-                        [candidate, "--version"], capture_output=True, check=True
-                    )
-                    if result.returncode == 0:
-                        return candidate
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    continue
-        return "python"  # Fallback to standard python command
-
     # === CONFIGURATION METHODS ===
 
     def should_use_venv(self) -> bool:
@@ -113,16 +101,19 @@ class ExecutionEnvironment:
         # Avoid venv in containers and CI to prevent path issues
         return self.context == ExecutionContext.NATIVE
 
-    def get_pip_command(self) -> Optional[str]:
+    def get_pip_path(self) -> Path:
+        """Get the expected pip path for venv environments (does not check existence)."""
+        pip_name = "pip.exe" if self.platform == Platform.WINDOWS else "pip"
+        return self.venv_scripts_dir / pip_name
+
+    def get_pip_command(self) -> str:
         """Get appropriate pip command based on environment."""
         if not self.should_use_venv():
             # Use system pip in containers/CI
             return "pip3" if self.python_executable == "python3" else "pip"
 
         # Use venv pip on native systems
-        pip_name = "pip.exe" if self.platform == Platform.WINDOWS else "pip"
-        pip_path = self.venv_scripts_dir / pip_name
-        return str(pip_path) if pip_path.exists() else None
+        return str(self.get_pip_path())
 
     def get_pip_install_args(self) -> List[str]:
         """Get pip install arguments based on environment."""
@@ -155,6 +146,22 @@ class ExecutionEnvironment:
     def git_hooks_dir(self) -> Path:
         """Get the git hooks directory."""
         return self._root_dir / ".git" / "hooks"
+
+    @property
+    def python_executable(self) -> str:
+        """Get the appropriate Python executable for the current context."""
+        if self.context in (ExecutionContext.CONTAINER, ExecutionContext.CI):
+            # In containers and CI, prefer system Python
+            for candidate in ["python3", "python"]:
+                try:
+                    result = subprocess.run(
+                        [candidate, "--version"], capture_output=True, check=True
+                    )
+                    if result.returncode == 0:
+                        return candidate
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    continue
+        return "python"  # Fallback to standard python command
 
     # === BACKWARD COMPATIBILITY PROPERTIES ===
 

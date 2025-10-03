@@ -3,6 +3,10 @@
 Simple utilities for Terraform management.
 
 Basic logging, file operations, and constants without unnecessary complexity.
+
+DESIGN PRINCIPLE: Operations and workflows - handles I/O, commands, user interaction.
+This module performs actions and orchestrates workflows. All configuration data and
+environment detection should be delegated to environment.py.
 """
 
 import os
@@ -141,9 +145,6 @@ def setup_environment(clean: bool = False) -> bool:
     if not _env.should_use_venv():
         log_info("Installing dependencies with system pip...")
         pip_cmd = _env.get_pip_command()
-        if not pip_cmd:
-            log_error("Could not find system pip")
-            return False
 
         install_args = (
             [pip_cmd, "install"] + _env.get_pip_install_args() + ["-r", REQUIREMENTS_FILE]
@@ -177,7 +178,9 @@ def setup_environment(clean: bool = False) -> bool:
 
     # Find pip command
     pip_cmd = _env.get_pip_command()
-    if not pip_cmd:
+
+    # Validate pip exists (only needed for venv, system pip is assumed to exist)
+    if _env.should_use_venv() and not _env.get_pip_path().exists():
         log_error("Could not find pip in virtual environment")
         return False
 
@@ -197,7 +200,7 @@ def setup_environment(clean: bool = False) -> bool:
     if not precommit_hook.exists():
         log_info("Installing pre-commit hooks...")
         if not run_command(["pre-commit", "install"], cwd=_env.root_dir, simple=True):
-            log_warning("Failed to install pre-commit hooks - you may need to run 'pre-commit install' manually")
+            log_warning("Failed to install pre-commit hooks - Run 'pre-commit install' manually")
         else:
             log_success("Pre-commit hooks installed")
     else:
