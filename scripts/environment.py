@@ -151,6 +151,11 @@ class ExecutionEnvironment:
         """Get the project root directory."""
         return self._root_dir
 
+    @property
+    def git_hooks_dir(self) -> Path:
+        """Get the git hooks directory."""
+        return self._root_dir / ".git" / "hooks"
+
     # === BACKWARD COMPATIBILITY PROPERTIES ===
 
     @property

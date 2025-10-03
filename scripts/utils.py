@@ -191,6 +191,18 @@ def setup_environment(clean: bool = False) -> bool:
     log_success("Dependencies installed successfully")
     log_info(f"Virtual environment ready at: {venv_path}")
 
+    # Install pre-commit hooks if not already installed
+    precommit_hook = _env.git_hooks_dir / "pre-commit"
+
+    if not precommit_hook.exists():
+        log_info("Installing pre-commit hooks...")
+        if not run_command(["pre-commit", "install"], cwd=_env.root_dir, simple=True):
+            log_warning("Failed to install pre-commit hooks - you may need to run 'pre-commit install' manually")
+        else:
+            log_success("Pre-commit hooks installed")
+    else:
+        log_info("Pre-commit hooks already installed")
+
     # Show appropriate activation command
     if _env.is_windows:
         log_info(f"Activate with: {venv_path}\\Scripts\\activate")
