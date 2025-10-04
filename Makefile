@@ -144,4 +144,4 @@ pre-commit:
 setup-tests:
 	@python -c "from scripts.utils import log_warning; log_warning('Test structure is automatically managed')"
 	@python -c "import os; [os.makedirs(d, exist_ok=True) for d in ['tests/unit', 'tests/integration', 'tests/fixtures']]"
-	@touch tests/__init__.py tests/unit/__init__.py tests/integration/__init__.py
+	@python -c "from pathlib import Path; [Path(f).touch() for f in ['tests/__init__.py', 'tests/unit/__init__.py', 'tests/integration/__init__.py']]"

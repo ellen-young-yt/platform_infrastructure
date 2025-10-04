@@ -73,3 +73,18 @@ output "ecs_task_role_arn" {
   description = "ARN of the ECS task role"
   value       = module.iam.ecs_task_role_arn
 }
+
+output "ecs_dbt_task_definition_arn" {
+  description = "ARN of the dbt task definition"
+  value       = module.ecs_dbt.task_definition_arn
+}
+
+output "ecs_dbt_log_group_name" {
+  description = "Name of the dbt CloudWatch log group"
+  value       = module.ecs_dbt.log_group_name
+}
+
+output "ecs_dbt_security_group_id" {
+  description = "ID of the ECS security group"
+  value       = module.networking.ecs_security_group_id
+}

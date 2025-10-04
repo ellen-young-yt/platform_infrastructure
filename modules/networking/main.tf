@@ -49,7 +49,6 @@ resource "aws_iam_role_policy" "vpc_flow_logs" {
     Statement = [
       {
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogGroups",
@@ -75,6 +74,11 @@ resource "aws_flow_log" "vpc" {
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-vpc-flow-logs"
   })
+
+  depends_on = [
+    aws_cloudwatch_log_group.vpc_flow_logs,
+    aws_iam_role_policy.vpc_flow_logs
+  ]
 }
 
 resource "aws_internet_gateway" "main" {
