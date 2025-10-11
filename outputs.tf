@@ -13,11 +13,6 @@ output "public_subnet_ids" {
   value       = module.networking.public_subnet_ids
 }
 
-output "private_subnet_ids" {
-  description = "IDs of the private subnets"
-  value       = module.networking.private_subnet_ids
-}
-
 output "data_lake_bucket_id" {
   description = "ID of the data lake S3 bucket"
   value       = module.s3_data_lake.data_lake_bucket_id

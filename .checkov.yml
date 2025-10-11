@@ -77,6 +77,8 @@ skip-check:
   - CKV2_AWS_51
   # API Gateway WAF protection (CKV2_AWS_29) - can add for production
   - CKV2_AWS_29
+  # ECS public IP assignment (CKV_AWS_333) - required without NAT Gateway for cost optimization
+  - CKV_AWS_333
 
 # Keep critical security checks enabled (IAM, access control, encryption at rest, etc.)
 # This will still catch over-scoped roles and permissions
