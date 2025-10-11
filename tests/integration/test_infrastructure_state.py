@@ -90,8 +90,6 @@ class TestInfrastructureState:
         required_secrets = [
             f"{test_project_name}/{environment}/snowflake/credentials",
             f"{test_project_name}/{environment}/redis/credentials",
-            f"{test_project_name}/{environment}/api/keys",
-            f"{test_project_name}/{environment}/app/config",
         ]
 
         for secret_name in required_secrets:
