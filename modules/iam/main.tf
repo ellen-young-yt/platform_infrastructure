@@ -9,9 +9,7 @@ locals {
   # Execution role policy - secrets access for container startup
   execution_role_policy = templatefile("${path.module}/policies/execution-role-policy.json.tftpl", {
     secret_arns = compact([
-      var.snowflake_credentials_secret_arn,
-      var.app_config_secret_arn,
-      var.api_keys_secret_arn
+      var.snowflake_credentials_secret_arn
     ])
   })
 

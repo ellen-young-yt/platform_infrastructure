@@ -100,8 +100,6 @@ module "iam_airflow" {
 
   # Pass direct module references for secrets
   snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
-  app_config_secret_arn            = module.secrets.app_config_secret_arn
-  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
@@ -145,8 +143,6 @@ module "iam_metabase" {
 
   # Pass direct module references for secrets
   snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
-  app_config_secret_arn            = module.secrets.app_config_secret_arn
-  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
@@ -206,9 +202,7 @@ module "ecs_dbt" {
   tags                  = local.common_tags
 
   # Secrets integration
-  database_secret_name   = module.secrets.snowflake_credentials_secret_name
-  app_config_secret_name = module.secrets.app_config_secret_name
-  api_keys_secret_name   = module.secrets.api_keys_secret_name
+  database_secret_name = module.secrets.snowflake_credentials_secret_name
 }
 
 module "monitoring" {
@@ -249,8 +243,6 @@ module "iam" {
 
   # Pass direct module references for secrets
   snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
-  app_config_secret_arn            = module.secrets.app_config_secret_arn
-  api_keys_secret_arn              = module.secrets.api_keys_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn

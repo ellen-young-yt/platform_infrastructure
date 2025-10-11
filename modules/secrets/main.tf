@@ -10,8 +10,6 @@ resource "aws_secretsmanager_secret" "snowflake_credentials" {
   })
 }
 
-
-
 resource "aws_secretsmanager_secret" "redis_credentials" {
   name                    = "${var.project_name}/${var.environment}/redis/credentials"
   description             = "Redis credentials for ${var.environment} environment"
@@ -22,39 +20,6 @@ resource "aws_secretsmanager_secret" "redis_credentials" {
     Purpose = "Redis credentials"
   })
 }
-
-resource "aws_secretsmanager_secret" "api_keys" {
-  name                    = "${var.project_name}/${var.environment}/api/keys"
-  description             = "API keys and tokens for ${var.environment} environment"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
-  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
-
-  tags = merge(var.tags, {
-    Purpose = "API keys"
-  })
-}
-
-resource "aws_secretsmanager_secret" "app_config" {
-  name                    = "${var.project_name}/${var.environment}/app/config"
-  description             = "Application configuration for ${var.environment} environment"
-  recovery_window_in_days = var.environment == "prod" ? 30 : 0
-  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
-
-  tags = merge(var.tags, {
-    Purpose = "Application configuration"
-  })
-}
-
-# Secret version will be managed outside of Terraform
-# Use AWS CLI or Console to set the secret value after deployment
-# Example structure for manual update:
-# {
-#   "secret_key": "your-secret-key-here",
-#   "jwt_secret": "your-jwt-secret-here",
-#   "encryption_key": "your-encryption-key-here",
-#   "session_secret": "your-session-secret-here",
-#   "additional_config": {}
-# }
 
 resource "aws_iam_role" "secrets_access" {
   name = "${var.project_name}-${var.environment}-secrets-access-role"
@@ -92,9 +57,7 @@ resource "aws_iam_role_policy" "secrets_access" {
         ]
         Resource = [
           aws_secretsmanager_secret.snowflake_credentials.arn,
-          aws_secretsmanager_secret.redis_credentials.arn,
-          aws_secretsmanager_secret.api_keys.arn,
-          aws_secretsmanager_secret.app_config.arn
+          aws_secretsmanager_secret.redis_credentials.arn
         ]
       }
     ]

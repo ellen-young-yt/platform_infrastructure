@@ -43,18 +43,6 @@ variable "snowflake_credentials_secret_arn" {
   default     = null
 }
 
-variable "app_config_secret_arn" {
-  description = "ARN of the application config secret"
-  type        = string
-  default     = null
-}
-
-variable "api_keys_secret_arn" {
-  description = "ARN of the API keys secret"
-  type        = string
-  default     = null
-}
-
 # S3 bucket ARN references - passed from root module
 variable "data_lake_bucket_arn" {
   description = "ARN of the data lake S3 bucket"

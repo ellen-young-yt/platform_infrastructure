@@ -65,13 +65,3 @@ variable "database_secret_name" {
   description = "Name of the Snowflake credentials secret in Secrets Manager"
   type        = string
 }
-
-variable "app_config_secret_name" {
-  description = "Name of the app config secret in Secrets Manager"
-  type        = string
-}
-
-variable "api_keys_secret_name" {
-  description = "Name of the API keys secret in Secrets Manager"
-  type        = string
-}
