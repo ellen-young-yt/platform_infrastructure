@@ -6,11 +6,11 @@ variable "service_name" {
 }
 
 variable "service_type" {
-  description = "Type of service (dbt, airflow, metabase) to determine permissions"
+  description = "Type of service (dbt, airflow, superset) to determine permissions"
   type        = string
   validation {
-    condition     = contains(["dbt", "airflow", "metabase"], var.service_type)
-    error_message = "Service type must be one of: dbt, airflow, metabase."
+    condition     = contains(["dbt", "airflow", "superset"], var.service_type)
+    error_message = "Service type must be one of: dbt, airflow, superset."
   }
 }
 

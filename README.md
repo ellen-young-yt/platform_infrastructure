@@ -9,7 +9,7 @@ The infrastructure consists of the following modules:
 - **networking**: VPC, subnets, security groups, NAT gateways
 - **s3-data-lake**: S3 buckets for data storage with proper lifecycle policies
 - **ecs-airflow**: Self-deployed Airflow on ECS for workflow orchestration
-- **ecs-metabase**: Self-deployed Metabase on ECS for business intelligence
+- **ecs-superset**: Self-deployed Superset on ECS for business intelligence
 - **snowflake-integration**: IAM roles and S3 stages for Snowflake integration
 - **lambda-serving**: Lambda functions and API Gateway for ML model serving
 - **monitoring**: CloudWatch dashboards, alarms, and SNS notifications
@@ -38,7 +38,7 @@ platform_infrastructure/
 │   ├── networking/
 │   ├── s3-data-lake/
 │   ├── ecs-airflow/
-│   ├── ecs-metabase/
+│   ├── ecs-superset/
 │   ├── snowflake-integration/
 │   ├── lambda-serving/
 │   ├── monitoring/
@@ -63,7 +63,7 @@ platform_infrastructure/
 - **networking**: Creates VPC with public/private subnets, NAT gateways, and security groups across 3 AZs
 - **s3-data-lake**: Creates S3 buckets with lifecycle policies, versioning, and encryption for data storage
 - **ecs-airflow**: Deploys Apache Airflow webserver and scheduler on ECS Fargate with S3/Secrets access
-- **ecs-metabase**: Deploys Metabase on ECS Fargate with ALB, health checks, and auto-scaling
+- **ecs-superset**: Deploys Apache Superset on ECS Fargate with ALB, health checks, and auto-scaling
 - **snowflake-integration**: Creates IAM roles and S3 stages for Snowflake data loading with managed credentials
 - **lambda-serving**: Creates API Gateway and Lambda for ML model serving with throttling and authentication
 - **monitoring**: Creates CloudWatch dashboards, alarms, and SNS notifications for comprehensive observability

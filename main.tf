@@ -131,12 +131,12 @@ module "ecs_airflow" {
   tags = local.common_tags
 }
 
-# IAM for Metabase
-module "iam_metabase" {
+# IAM for Superset
+module "iam_superset" {
   source = "./modules/iam"
 
-  service_name = "metabase"
-  service_type = "metabase"
+  service_name = "superset"
+  service_type = "superset"
   environment  = var.environment
   project_name = var.project_name
   common_tags  = local.common_tags
@@ -152,8 +152,8 @@ module "iam_metabase" {
   depends_on = [module.secrets]
 }
 
-module "ecs_metabase" {
-  source = "./modules/ecs-metabase"
+module "ecs_superset" {
+  source = "./modules/ecs-superset"
 
   environment           = var.environment
   project_name          = var.project_name
@@ -162,8 +162,8 @@ module "ecs_metabase" {
   ecs_security_group_id = module.networking.ecs_security_group_id
 
   # Use centralized IAM roles
-  execution_role_arn = module.iam_metabase.ecs_execution_role_arn
-  task_role_arn      = module.iam_metabase.ecs_task_role_arn
+  execution_role_arn = module.iam_superset.ecs_execution_role_arn
+  task_role_arn      = module.iam_superset.ecs_task_role_arn
 
   # Configuration from environment variables
   enable_load_balancer = var.enable_deletion_protection # Use same logic as ALB protection
@@ -214,14 +214,14 @@ module "monitoring" {
   ecs_service_names = [
     "${var.project_name}-${var.environment}-airflow-webserver",
     "${var.project_name}-${var.environment}-airflow-scheduler",
-    "${var.project_name}-${var.environment}-metabase",
+    "${var.project_name}-${var.environment}-superset",
     "${var.service_name}-${var.environment}"
   ]
 
   # Log groups for centralized management
   log_group_names = [
     "/ecs/${var.project_name}-${var.environment}-airflow",
-    "/ecs/${var.project_name}-${var.environment}-metabase",
+    "/ecs/${var.project_name}-${var.environment}-superset",
     "/ecs/${var.project_name}-${var.environment}-${var.service_name}"
   ]
 

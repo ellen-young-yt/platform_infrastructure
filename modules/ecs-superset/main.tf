@@ -1,5 +1,5 @@
-resource "aws_ecs_cluster" "metabase" {
-  name = "${var.project_name}-${var.environment}-metabase"
+resource "aws_ecs_cluster" "superset" {
+  name = "${var.project_name}-${var.environment}-superset"
 
   setting {
     name  = "containerInsights"
@@ -7,12 +7,12 @@ resource "aws_ecs_cluster" "metabase" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-metabase-cluster"
+    Name = "${var.project_name}-${var.environment}-superset-cluster"
   })
 }
 
-resource "aws_ecs_cluster_capacity_providers" "metabase" {
-  cluster_name = aws_ecs_cluster.metabase.name
+resource "aws_ecs_cluster_capacity_providers" "superset" {
+  cluster_name = aws_ecs_cluster.superset.name
 
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 
@@ -23,15 +23,15 @@ resource "aws_ecs_cluster_capacity_providers" "metabase" {
   }
 }
 
-# IAM roles are now managed centrally - see main.tf iam_metabase module
+# IAM roles are now managed centrally - see main.tf iam_superset module
 
 # CloudWatch Log Group managed by monitoring module
 locals {
-  log_group_name = "/ecs/${var.project_name}-${var.environment}-metabase"
+  log_group_name = "/ecs/${var.project_name}-${var.environment}-superset"
 }
 
-resource "aws_ecs_task_definition" "metabase" {
-  family                   = "${var.project_name}-${var.environment}-metabase"
+resource "aws_ecs_task_definition" "superset" {
+  family                   = "${var.project_name}-${var.environment}-superset"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
@@ -41,23 +41,23 @@ resource "aws_ecs_task_definition" "metabase" {
 
   container_definitions = jsonencode([
     {
-      name  = "metabase"
-      image = var.metabase_image
+      name  = "superset"
+      image = var.superset_image
 
       portMappings = [
         {
-          containerPort = 3000
+          containerPort = 8088
           protocol      = "tcp"
         }
       ]
 
       environment = [
         {
-          name  = "MB_DB_TYPE"
+          name  = "SUPERSET_DATABASE_TYPE"
           value = var.database_type
         },
         {
-          name  = "MB_DB_CONNECTION_URI"
+          name  = "SUPERSET_DATABASE_URI"
           value = var.database_connection_uri
         }
       ]
@@ -67,14 +67,14 @@ resource "aws_ecs_task_definition" "metabase" {
         options = {
           "awslogs-group"         = local.log_group_name
           "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "metabase"
+          "awslogs-stream-prefix" = "superset"
         }
       }
 
       healthCheck = {
         command = [
           "CMD-SHELL",
-          "curl -f http://localhost:3000/api/health || exit 1"
+          "curl -f http://localhost:8088/health || exit 1"
         ]
         interval    = 30
         timeout     = 5
@@ -89,10 +89,10 @@ resource "aws_ecs_task_definition" "metabase" {
   tags = var.tags
 }
 
-resource "aws_lb" "metabase" {
+resource "aws_lb" "superset" {
   count = var.enable_load_balancer ? 1 : 0
 
-  name               = "${var.project_name}-${var.environment}-metabase-alb"
+  name               = "${var.project_name}-${var.environment}-superset-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb[0].id]
@@ -101,14 +101,14 @@ resource "aws_lb" "metabase" {
   enable_deletion_protection = var.environment == "prod" ? true : false
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-metabase-alb"
+    Name = "${var.project_name}-${var.environment}-superset-alb"
   })
 }
 
 resource "aws_security_group" "alb" {
   count = var.enable_load_balancer ? 1 : 0
 
-  name_prefix = "${var.project_name}-${var.environment}-metabase-alb-"
+  name_prefix = "${var.project_name}-${var.environment}-superset-alb-"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -135,15 +135,15 @@ resource "aws_security_group" "alb" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-metabase-alb-sg"
+    Name = "${var.project_name}-${var.environment}-superset-alb-sg"
   })
 }
 
-resource "aws_lb_target_group" "metabase" {
+resource "aws_lb_target_group" "superset" {
   count = var.enable_load_balancer ? 1 : 0
 
-  name        = "${var.project_name}-${var.environment}-metabase-tg"
-  port        = 3000
+  name        = "${var.project_name}-${var.environment}-superset-tg"
+  port        = 8088
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -153,7 +153,7 @@ resource "aws_lb_target_group" "metabase" {
     healthy_threshold   = 2
     interval            = 30
     matcher             = "200"
-    path                = "/api/health"
+    path                = "/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 5
@@ -163,23 +163,23 @@ resource "aws_lb_target_group" "metabase" {
   tags = var.tags
 }
 
-resource "aws_lb_listener" "metabase" {
+resource "aws_lb_listener" "superset" {
   count = var.enable_load_balancer ? 1 : 0
 
-  load_balancer_arn = aws_lb.metabase[0].arn
+  load_balancer_arn = aws_lb.superset[0].arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.metabase[0].arn
+    target_group_arn = aws_lb_target_group.superset[0].arn
   }
 }
 
-resource "aws_ecs_service" "metabase" {
-  name            = "${var.project_name}-${var.environment}-metabase"
-  cluster         = aws_ecs_cluster.metabase.id
-  task_definition = aws_ecs_task_definition.metabase.arn
+resource "aws_ecs_service" "superset" {
+  name            = "${var.project_name}-${var.environment}-superset"
+  cluster         = aws_ecs_cluster.superset.id
+  task_definition = aws_ecs_task_definition.superset.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
@@ -192,13 +192,13 @@ resource "aws_ecs_service" "metabase" {
   dynamic "load_balancer" {
     for_each = var.enable_load_balancer ? [1] : []
     content {
-      target_group_arn = aws_lb_target_group.metabase[0].arn
-      container_name   = "metabase"
-      container_port   = 3000
+      target_group_arn = aws_lb_target_group.superset[0].arn
+      container_name   = "superset"
+      container_port   = 8088
     }
   }
 
-  depends_on = [aws_lb_listener.metabase]
+  depends_on = [aws_lb_listener.superset]
 
   tags = var.tags
 }

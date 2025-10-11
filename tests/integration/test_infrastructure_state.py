@@ -212,7 +212,7 @@ class TestInfrastructureState:
         """Test that ECS clusters exist and are active."""
         expected_clusters = [
             f"{test_project_name}-{environment}-airflow",
-            f"{test_project_name}-{environment}-metabase",
+            f"{test_project_name}-{environment}-superset",
         ]
 
         try:

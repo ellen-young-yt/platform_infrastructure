@@ -26,7 +26,7 @@ locals {
     environment  = var.environment
   }))
 
-  metabase_policies = jsondecode(templatefile("${path.module}/policies/metabase-policies.json.tftpl", {
+  superset_policies = jsondecode(templatefile("${path.module}/policies/superset-policies.json.tftpl", {
     project_name = var.project_name
     environment  = var.environment
   }))
@@ -43,7 +43,7 @@ locals {
     lookup({
       dbt      = local.dbt_policies
       airflow  = local.airflow_policies
-      metabase = local.metabase_policies
+      superset = local.superset_policies
     }, var.service_type, []),
     var.additional_policy_statements
   )

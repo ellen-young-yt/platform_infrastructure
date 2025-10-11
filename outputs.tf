@@ -33,9 +33,9 @@ output "airflow_cluster_arn" {
   value       = module.ecs_airflow.cluster_arn
 }
 
-output "metabase_cluster_arn" {
-  description = "ARN of the Metabase ECS cluster"
-  value       = module.ecs_metabase.cluster_arn
+output "superset_cluster_arn" {
+  description = "ARN of the Superset ECS cluster"
+  value       = module.ecs_superset.cluster_arn
 }
 
 

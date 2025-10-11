@@ -79,7 +79,7 @@ class TestIAMModule:
             in content
         )
         assert (
-            'metabase_policies = jsondecode(templatefile("${path.module}/policies/metabase-policies.json.tftpl"'  # noqa: E501
+            'superset_policies = jsondecode(templatefile("${path.module}/policies/superset-policies.json.tftpl"'  # noqa: E501
             in content
         )
 
@@ -119,7 +119,7 @@ class TestIAMModule:
         assert "lookup({" in content
         assert re.search(r"dbt\s*=\s*local.dbt_policies", content)
         assert re.search(r"airflow\s*=\s*local.airflow_policies", content)
-        assert re.search(r"metabase\s*=\s*local.metabase_policies", content)
+        assert re.search(r"superset\s*=\s*local.superset_policies", content)
         assert "}, var.service_type, [])" in content
 
     def test_iam_variables_tf_content(self, variables_tf_path):
