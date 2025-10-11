@@ -79,10 +79,6 @@ class TestECSDbtModule:
         assert "secrets = [" in content
         assert re.search(r'name\s*=\s*"SNOWFLAKE_CREDENTIALS"', content)
         assert re.search(r"valueFrom\s*=\s*var.database_secret_name", content)
-        assert re.search(r'name\s*=\s*"DBT_PROFILES_CONFIG"', content)
-        assert re.search(r"valueFrom\s*=\s*var.app_config_secret_name", content)
-        assert re.search(r'name\s*=\s*"API_KEYS"', content)
-        assert re.search(r"valueFrom\s*=\s*var.api_keys_secret_name", content)
 
     def test_ecs_dbt_logging_configuration(self, main_tf_path):
         """Test ECS logging is properly configured."""

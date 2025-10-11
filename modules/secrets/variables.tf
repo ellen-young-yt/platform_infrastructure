@@ -107,14 +107,6 @@ variable "datadog_api_key" {
 }
 
 # tflint-ignore: terraform_unused_declarations
-variable "custom_api_keys" {
-  description = "Map of custom API keys"
-  type        = map(string)
-  default     = {}
-  sensitive   = true
-}
-
-# tflint-ignore: terraform_unused_declarations
 variable "app_secret_key" {
   description = "Application secret key"
   type        = string
@@ -143,14 +135,6 @@ variable "session_secret" {
   description = "Session secret for web applications"
   type        = string
   default     = ""
-  sensitive   = true
-}
-
-# tflint-ignore: terraform_unused_declarations
-variable "additional_app_config" {
-  description = "Additional application configuration"
-  type        = map(string)
-  default     = {}
   sensitive   = true
 }
 
