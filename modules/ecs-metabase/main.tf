@@ -184,8 +184,9 @@ resource "aws_ecs_service" "metabase" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups = [var.ecs_security_group_id]
-    subnets         = var.private_subnet_ids
+    security_groups  = [var.ecs_security_group_id]
+    subnets          = var.public_subnet_ids
+    assign_public_ip = true
   }
 
   dynamic "load_balancer" {

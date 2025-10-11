@@ -115,7 +115,7 @@ module "ecs_airflow" {
   environment           = var.environment
   project_name          = var.project_name
   vpc_id                = module.networking.vpc_id
-  private_subnet_ids    = module.networking.private_subnet_ids
+  public_subnet_ids     = module.networking.public_subnet_ids
   ecs_security_group_id = module.networking.ecs_security_group_id
 
   # Use centralized IAM roles
@@ -158,7 +158,6 @@ module "ecs_metabase" {
   environment           = var.environment
   project_name          = var.project_name
   vpc_id                = module.networking.vpc_id
-  private_subnet_ids    = module.networking.private_subnet_ids
   public_subnet_ids     = module.networking.public_subnet_ids
   ecs_security_group_id = module.networking.ecs_security_group_id
 

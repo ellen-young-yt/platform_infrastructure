@@ -7,14 +7,6 @@
     "value": "10.0.0.0/16",
     "type": "string"
   },
-  "private_subnet_ids": {
-    "value": [
-      "subnet-0123456789abcdef0",
-      "subnet-0123456789abcdef1",
-      "subnet-0123456789abcdef2"
-    ],
-    "type": ["list", "string"]
-  },
   "public_subnet_ids": {
     "value": [
       "subnet-0987654321fedcba0",

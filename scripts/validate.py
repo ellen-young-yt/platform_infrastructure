@@ -32,21 +32,21 @@ def main() -> None:
     manager = TerraformManager(args.environment)
 
     if manager.validate_prerequisites(args.environment):
-        print("\n✅ Validation completed successfully!")
+        print("\n[SUCCESS] Validation completed successfully!")
         sys.exit(0)
     else:
-        print("\n❌ Validation failed!")
+        print("\n[FAILED] Validation failed!")
 
         # Provide context-specific troubleshooting tips
         from environment import ExecutionContext
 
         if env.context == ExecutionContext.NATIVE:
-            print("\n💡 Troubleshooting tips:")
+            print("\n[INFO] Troubleshooting tips:")
             print("  - Ensure AWS credentials are configured: aws configure")
             print("  - Check Terraform installation: terraform --version")
             print("  - Verify network connectivity to AWS")
         elif env.context == ExecutionContext.CI:
-            print("\n💡 CI troubleshooting:")
+            print("\n[INFO] CI troubleshooting:")
             print("  - Check AWS credentials in secrets")
             print("  - Verify workflow environment variables")
 

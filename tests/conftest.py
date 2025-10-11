@@ -66,8 +66,7 @@ def sample_terraform_outputs():
     return {
         "vpc_id": {"value": "vpc-123456"},
         "vpc_cidr_block": {"value": "10.0.0.0/16"},
-        "private_subnet_ids": {"value": ["subnet-123", "subnet-456"]},
-        "public_subnet_ids": {"value": ["subnet-789", "subnet-abc"]},
+        "public_subnet_ids": {"value": ["subnet-789", "subnet-abc", "subnet-def"]},
         "data_lake_bucket_id": {"value": "test-bucket"},
         "api_gateway_url": {"value": "https://api.example.com/dev"},
     }

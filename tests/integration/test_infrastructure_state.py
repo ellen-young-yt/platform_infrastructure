@@ -197,12 +197,12 @@ class TestInfrastructureState:
                 len(availability_zones) >= 2
             ), f"Subnets should be in multiple AZs, found: {availability_zones}"
 
-            # Check for both public and private subnets
+            # Check for public subnets
             public_subnets = [s for s in subnets if s.get("MapPublicIpOnLaunch", False)]
-            private_subnets = [s for s in subnets if not s.get("MapPublicIpOnLaunch", False)]
 
-            assert len(public_subnets) >= 1, "Should have at least one public subnet"
-            assert len(private_subnets) >= 1, "Should have at least one private subnet"
+            assert (
+                len(public_subnets) >= 3
+            ), f"Should have at least 3 public subnets, found {len(public_subnets)}"
 
         except ClientError as e:
             pytest.fail(f"Failed to describe subnets: {e}")

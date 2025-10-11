@@ -134,8 +134,9 @@ resource "aws_ecs_service" "airflow_webserver" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups = [var.ecs_security_group_id]
-    subnets         = var.private_subnet_ids
+    security_groups  = [var.ecs_security_group_id]
+    subnets          = var.public_subnet_ids
+    assign_public_ip = true
   }
 
   tags = var.tags
@@ -149,8 +150,9 @@ resource "aws_ecs_service" "airflow_scheduler" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups = [var.ecs_security_group_id]
-    subnets         = var.private_subnet_ids
+    security_groups  = [var.ecs_security_group_id]
+    subnets          = var.public_subnet_ids
+    assign_public_ip = true
   }
 
   tags = var.tags
