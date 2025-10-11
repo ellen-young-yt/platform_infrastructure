@@ -25,6 +25,14 @@ repos:
         files: \.tf$
         pass_filenames: false
 
+      - id: test-unit
+        name: Run unit tests
+        description: Run unit tests using centralized make command
+        entry: make test-unit
+        language: system
+        files: \.(tf|py)$
+        pass_filenames: false
+
   # Keep essential file checks that don't have make equivalents
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -58,5 +66,5 @@ repos:
         name: Detect private key
         description: Detects presence of private keys
 
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, pre-push]

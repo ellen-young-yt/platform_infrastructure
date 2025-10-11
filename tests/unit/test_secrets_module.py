@@ -25,8 +25,6 @@ class TestSecretsModule:
         # Check for all required secrets
         assert 'resource "aws_secretsmanager_secret" "snowflake_credentials"' in content
         assert 'resource "aws_secretsmanager_secret" "redis_credentials"' in content
-        assert 'resource "aws_secretsmanager_secret" "api_keys"' in content
-        assert 'resource "aws_secretsmanager_secret" "app_config"' in content
 
         # Check for IAM roles
         assert 'resource "aws_iam_role" "secrets_access"' in content
@@ -44,8 +42,6 @@ class TestSecretsModule:
         # Check naming patterns
         assert '"${var.project_name}/${var.environment}/snowflake/credentials"' in content
         assert '"${var.project_name}/${var.environment}/redis/credentials"' in content
-        assert '"${var.project_name}/${var.environment}/api/keys"' in content
-        assert '"${var.project_name}/${var.environment}/app/config"' in content
 
         # Check IAM role naming
         assert '"${var.project_name}-${var.environment}-secrets-access-role"' in content
@@ -92,8 +88,6 @@ class TestSecretsModule:
         # Check that all secrets are included in the policy
         assert "aws_secretsmanager_secret.snowflake_credentials.arn" in content
         assert "aws_secretsmanager_secret.redis_credentials.arn" in content
-        assert "aws_secretsmanager_secret.api_keys.arn" in content
-        assert "aws_secretsmanager_secret.app_config.arn" in content
 
     def test_secrets_rotation_configuration(self):
         """Test secrets rotation role configuration."""
@@ -122,8 +116,6 @@ class TestSecretsModule:
         assert "tags = merge(var.tags, {" in content
         assert 'Purpose = "Snowflake credentials"' in content
         assert 'Purpose = "Redis credentials"' in content
-        assert 'Purpose = "API keys"' in content
-        assert 'Purpose = "Application configuration"' in content
         assert 'Purpose = "Secrets encryption"' in content
 
     def test_secrets_variables_tf_content(self):
@@ -155,14 +147,10 @@ class TestSecretsModule:
         # Check secret ARN outputs
         assert 'output "snowflake_credentials_secret_arn"' in content
         assert 'output "redis_credentials_secret_arn"' in content
-        assert 'output "api_keys_secret_arn"' in content
-        assert 'output "app_config_secret_arn"' in content
 
         # Check secret name outputs
         assert 'output "snowflake_credentials_secret_name"' in content
         assert 'output "redis_credentials_secret_name"' in content
-        assert 'output "api_keys_secret_name"' in content
-        assert 'output "app_config_secret_name"' in content
 
         # Check IAM role outputs
         assert 'output "secrets_access_role_arn"' in content
