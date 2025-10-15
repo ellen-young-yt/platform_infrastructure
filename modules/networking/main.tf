@@ -196,3 +196,34 @@ resource "aws_security_group" "alb" {
     Name = "${var.project_name}-${var.environment}-alb-sg"
   })
 }
+
+# Security group for RDS (in public subnet but locked down to ECS only)
+resource "aws_security_group" "rds" {
+  name_prefix = "${var.project_name}-${var.environment}-rds-"
+  description = "Security group for RDS database - allows access only from ECS tasks"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "PostgreSQL from ECS tasks only"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs.id]
+  }
+
+  egress {
+    description = "Allow all outbound for updates and patches"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-rds-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}

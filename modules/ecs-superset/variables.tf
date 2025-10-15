@@ -47,17 +47,16 @@ variable "desired_count" {
   default     = 1
 }
 
-variable "database_type" {
-  description = "Database type for Superset metadata (postgresql, mysql, sqlite)"
-  type        = string
-  default     = "sqlite"
-}
-
-variable "database_connection_uri" {
-  description = "Database connection URI for Superset metadata"
+variable "rds_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing RDS credentials"
   type        = string
   default     = ""
-  sensitive   = true
+}
+
+variable "app_config_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing Superset app configuration (SECRET_KEY, etc.)"
+  type        = string
+  default     = ""
 }
 
 variable "enable_load_balancer" {
@@ -74,6 +73,30 @@ variable "execution_role_arn" {
 variable "task_role_arn" {
   description = "ARN of the ECS task role"
   type        = string
+}
+
+variable "redis_host" {
+  description = "Redis endpoint hostname"
+  type        = string
+  default     = ""
+}
+
+variable "redis_port" {
+  description = "Redis port"
+  type        = number
+  default     = 6379
+}
+
+variable "redis_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing Redis credentials"
+  type        = string
+  default     = ""
+}
+
+variable "snowflake_superset_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing Snowflake credentials for Superset (key-pair auth)"
+  type        = string
+  default     = ""
 }
 
 variable "tags" {

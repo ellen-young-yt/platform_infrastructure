@@ -23,7 +23,8 @@ class TestSecretsModule:
         content = main_tf_path.read_text()
 
         # Check for all required secrets
-        assert 'resource "aws_secretsmanager_secret" "snowflake_credentials"' in content
+        assert 'resource "aws_secretsmanager_secret" "snowflake_dbt_credentials"' in content
+        assert 'resource "aws_secretsmanager_secret" "snowflake_superset_credentials"' in content
         assert 'resource "aws_secretsmanager_secret" "redis_credentials"' in content
 
         # Check for IAM roles
@@ -40,7 +41,8 @@ class TestSecretsModule:
         content = main_tf_path.read_text()
 
         # Check naming patterns
-        assert '"${var.project_name}/${var.environment}/snowflake/credentials"' in content
+        assert '"${var.project_name}/${var.environment}/snowflake/dbt-credentials"' in content
+        assert '"${var.project_name}/${var.environment}/snowflake/superset-credentials"' in content
         assert '"${var.project_name}/${var.environment}/redis/credentials"' in content
 
         # Check IAM role naming
@@ -86,7 +88,8 @@ class TestSecretsModule:
         assert '"secretsmanager:GetSecretValue"' in content
 
         # Check that all secrets are included in the policy
-        assert "aws_secretsmanager_secret.snowflake_credentials.arn" in content
+        assert "aws_secretsmanager_secret.snowflake_dbt_credentials.arn" in content
+        assert "aws_secretsmanager_secret.snowflake_superset_credentials.arn" in content
         assert "aws_secretsmanager_secret.redis_credentials.arn" in content
 
     def test_secrets_rotation_configuration(self):
@@ -114,7 +117,8 @@ class TestSecretsModule:
 
         # Check tag merging with purpose-specific tags
         assert "tags = merge(var.tags, {" in content
-        assert 'Purpose = "Snowflake credentials"' in content
+        assert 'Purpose = "Snowflake dbt credentials"' in content
+        assert 'Purpose = "Snowflake Superset credentials"' in content
         assert 'Purpose = "Redis credentials"' in content
         assert 'Purpose = "Secrets encryption"' in content
 
@@ -145,11 +149,13 @@ class TestSecretsModule:
         content = outputs_tf_path.read_text()
 
         # Check secret ARN outputs
-        assert 'output "snowflake_credentials_secret_arn"' in content
+        assert 'output "snowflake_dbt_credentials_secret_arn"' in content
+        assert 'output "snowflake_superset_credentials_secret_arn"' in content
         assert 'output "redis_credentials_secret_arn"' in content
 
         # Check secret name outputs
-        assert 'output "snowflake_credentials_secret_name"' in content
+        assert 'output "snowflake_dbt_credentials_secret_name"' in content
+        assert 'output "snowflake_superset_credentials_secret_name"' in content
         assert 'output "redis_credentials_secret_name"' in content
 
         # Check IAM role outputs

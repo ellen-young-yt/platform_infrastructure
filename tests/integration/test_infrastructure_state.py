@@ -88,7 +88,8 @@ class TestInfrastructureState:
     def test_secrets_manager_secrets_exist(self, environment, test_project_name):
         """Test that required secrets exist in Secrets Manager."""
         required_secrets = [
-            f"{test_project_name}/{environment}/snowflake/credentials",
+            f"{test_project_name}/{environment}/snowflake/dbt-credentials",
+            f"{test_project_name}/{environment}/snowflake/superset-credentials",
             f"{test_project_name}/{environment}/redis/credentials",
         ]
 

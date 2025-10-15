@@ -38,3 +38,13 @@ output "port_forward_instructions" {
     "4. Access Superset on http://localhost:8088 after port forwarding"
   ])
 }
+
+output "init_task_definition_arn" {
+  description = "ARN of the Superset initialization task definition"
+  value       = aws_ecs_task_definition.superset_init.arn
+}
+
+output "init_task_definition_family" {
+  description = "Family name of the Superset initialization task definition"
+  value       = aws_ecs_task_definition.superset_init.family
+}

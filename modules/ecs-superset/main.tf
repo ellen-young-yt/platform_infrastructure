@@ -30,6 +30,110 @@ locals {
   log_group_name = "/ecs/${var.project_name}-${var.environment}-superset"
 }
 
+# Superset initialization task definition (run once to set up database)
+resource "aws_ecs_task_definition" "superset_init" {
+  family                   = "${var.project_name}-${var.environment}-superset-init"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.cpu
+  memory                   = var.memory
+  execution_role_arn       = var.execution_role_arn
+  task_role_arn            = var.task_role_arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "superset-init"
+      image = var.superset_image
+
+      command = [
+        "/bin/sh",
+        "-c",
+        <<-EOT
+          set -e
+          echo "Running database upgrade..."
+          superset db upgrade
+          echo "Initializing Superset..."
+          superset init
+          echo "Creating admin user..."
+          superset fab create-admin \
+            --username admin \
+            --firstname Admin \
+            --lastname User \
+            --email admin@example.com \
+            --password admin
+          echo "Superset initialization completed successfully!"
+        EOT
+      ]
+
+      environment = var.redis_host != "" ? [
+        {
+          name  = "REDIS_HOST"
+          value = var.redis_host
+        },
+        {
+          name  = "REDIS_PORT"
+          value = tostring(var.redis_port)
+        },
+        {
+          name  = "REDIS_SSL"
+          value = "false"
+        }
+      ] : []
+
+      secrets = concat(
+        var.rds_secret_arn != "" ? [
+          {
+            name      = "DATABASE_DB"
+            valueFrom = "${var.rds_secret_arn}:db_name::"
+          },
+          {
+            name      = "DATABASE_HOST"
+            valueFrom = "${var.rds_secret_arn}:db_host::"
+          },
+          {
+            name      = "DATABASE_PORT"
+            valueFrom = "${var.rds_secret_arn}:db_port::"
+          },
+          {
+            name      = "DATABASE_USER"
+            valueFrom = "${var.rds_secret_arn}:db_username::"
+          },
+          {
+            name      = "DATABASE_PASSWORD"
+            valueFrom = "${var.rds_secret_arn}:db_password::"
+          }
+        ] : [],
+        var.app_config_secret_arn != "" ? [
+          {
+            name      = "SECRET_KEY"
+            valueFrom = "${var.app_config_secret_arn}:secret_key::"
+          }
+        ] : [],
+        var.redis_secret_arn != "" ? [
+          {
+            name      = "REDIS_PASSWORD"
+            valueFrom = "${var.redis_secret_arn}:auth_token::"
+          }
+        ] : []
+      )
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = local.log_group_name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "superset-init"
+        }
+      }
+
+      essential = true
+    }
+  ])
+
+  tags = var.tags
+}
+
+# Superset service task definition (long-running web server)
 resource "aws_ecs_task_definition" "superset" {
   family                   = "${var.project_name}-${var.environment}-superset"
   network_mode             = "awsvpc"
@@ -44,6 +148,26 @@ resource "aws_ecs_task_definition" "superset" {
       name  = "superset"
       image = var.superset_image
 
+      command = [
+        "/bin/sh",
+        "-c",
+        <<-EOT
+          set -e
+          exec gunicorn \
+            --bind 0.0.0.0:8088 \
+            --access-logfile - \
+            --error-logfile - \
+            --workers 2 \
+            --worker-class gthread \
+            --threads 4 \
+            --timeout 120 \
+            --keep-alive 5 \
+            --max-requests 1000 \
+            --max-requests-jitter 50 \
+            "superset.app:create_app()"
+        EOT
+      ]
+
       portMappings = [
         {
           containerPort = 8088
@@ -51,16 +175,95 @@ resource "aws_ecs_task_definition" "superset" {
         }
       ]
 
-      environment = [
-        {
-          name  = "SUPERSET_DATABASE_TYPE"
-          value = var.database_type
-        },
-        {
-          name  = "SUPERSET_DATABASE_URI"
-          value = var.database_connection_uri
-        }
-      ]
+      environment = concat(
+        [
+          {
+            name  = "SUPERSET_LOAD_EXAMPLES"
+            value = "no"
+          }
+        ],
+        var.redis_host != "" ? [
+          {
+            name  = "REDIS_HOST"
+            value = var.redis_host
+          },
+          {
+            name  = "REDIS_PORT"
+            value = tostring(var.redis_port)
+          },
+          {
+            name  = "REDIS_SSL"
+            value = "false"
+          }
+        ] : []
+      )
+
+      secrets = concat(
+        var.rds_secret_arn != "" ? [
+          {
+            name      = "DATABASE_DB"
+            valueFrom = "${var.rds_secret_arn}:db_name::"
+          },
+          {
+            name      = "DATABASE_HOST"
+            valueFrom = "${var.rds_secret_arn}:db_host::"
+          },
+          {
+            name      = "DATABASE_PORT"
+            valueFrom = "${var.rds_secret_arn}:db_port::"
+          },
+          {
+            name      = "DATABASE_USER"
+            valueFrom = "${var.rds_secret_arn}:db_username::"
+          },
+          {
+            name      = "DATABASE_PASSWORD"
+            valueFrom = "${var.rds_secret_arn}:db_password::"
+          }
+        ] : [],
+        var.app_config_secret_arn != "" ? [
+          {
+            name      = "SECRET_KEY"
+            valueFrom = "${var.app_config_secret_arn}:secret_key::"
+          }
+        ] : [],
+        var.redis_secret_arn != "" ? [
+          {
+            name      = "REDIS_PASSWORD"
+            valueFrom = "${var.redis_secret_arn}:auth_token::"
+          }
+        ] : [],
+        var.snowflake_superset_secret_arn != "" ? [
+          {
+            name      = "SNOWFLAKE_ACCOUNT"
+            valueFrom = "${var.snowflake_superset_secret_arn}:account::"
+          },
+          {
+            name      = "SNOWFLAKE_USER"
+            valueFrom = "${var.snowflake_superset_secret_arn}:user::"
+          },
+          {
+            name      = "SNOWFLAKE_PRIVATE_KEY"
+            valueFrom = "${var.snowflake_superset_secret_arn}:private_key::"
+          },
+          {
+            name      = "SNOWFLAKE_ROLE"
+            valueFrom = "${var.snowflake_superset_secret_arn}:role::"
+          },
+          {
+            name      = "SNOWFLAKE_WAREHOUSE"
+            valueFrom = "${var.snowflake_superset_secret_arn}:warehouse::"
+          },
+          {
+            name      = "SNOWFLAKE_DATABASE"
+            valueFrom = "${var.snowflake_superset_secret_arn}:database::"
+          },
+          {
+            name      = "SNOWFLAKE_SCHEMA"
+            valueFrom = "${var.snowflake_superset_secret_arn}:schema::"
+          }
+        ] : []
+      )
 
       logConfiguration = {
         logDriver = "awslogs"

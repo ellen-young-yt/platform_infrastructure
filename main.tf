@@ -83,7 +83,7 @@ module "snowflake_integration" {
   data_lake_bucket_arn = module.s3_data_lake.data_lake_bucket_arn
 
   # Pass direct module reference for secret ARN
-  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  snowflake_credentials_secret_arn = module.secrets.snowflake_dbt_credentials_secret_arn
 
   tags = local.common_tags
 }
@@ -99,7 +99,7 @@ module "iam_airflow" {
   common_tags  = local.common_tags
 
   # Pass direct module references for secrets
-  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  snowflake_credentials_secret_arn = module.secrets.snowflake_dbt_credentials_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
@@ -131,6 +131,112 @@ module "ecs_airflow" {
   tags = local.common_tags
 }
 
+# RDS for Superset metadata
+# checkov:skip=CKV_AWS_17: RDS in public subnet (cost optimization - no NAT gateway)
+# checkov:skip=CKV_AWS_293: Deletion protection variable-based (prod only)
+# checkov:skip=CKV_AWS_353: Performance Insights variable-based (prod only)
+# checkov:skip=CKV_AWS_157: Multi-AZ variable-based (prod only)
+module "rds_superset" {
+  source = "./modules/rds-superset"
+
+  environment       = var.environment
+  project_name      = var.project_name
+  subnet_ids        = module.networking.public_subnet_ids
+  security_group_id = module.networking.rds_security_group_id
+
+  # Database configuration
+  db_name                   = "superset"
+  db_username               = "superset"
+  instance_class            = var.environment == "prod" ? "db.t4g.small" : "db.t4g.micro"
+  allocated_storage         = 20
+  max_allocated_storage     = 100
+  engine_version            = "16.8"
+  db_parameter_group_family = "postgres16"
+
+  # Backup configuration
+  backup_retention_period     = var.environment == "prod" ? 30 : 7
+  multi_az                    = var.environment == "prod" ? true : false
+  deletion_protection         = var.environment == "prod" ? true : false
+  skip_final_snapshot         = var.environment != "prod"
+  enable_performance_insights = var.environment == "prod" ? true : false
+  enable_enhanced_monitoring  = true # Minimal cost (~$1.17/month), enable in all environments
+  enable_iam_authentication   = true # No cost, enable in all environments
+
+  tags = local.common_tags
+
+  depends_on = [module.networking]
+}
+
+# Generate random SECRET_KEY for Superset
+resource "random_password" "superset_secret_key" {
+  length  = 42
+  special = true
+}
+
+# Store RDS credentials in Secrets Manager
+resource "aws_secretsmanager_secret_version" "superset_rds_credentials" {
+  secret_id = module.secrets.superset_rds_credentials_secret_arn
+  secret_string = jsonencode({
+    db_name              = module.rds_superset.db_name
+    db_username          = module.rds_superset.db_username
+    db_password          = module.rds_superset.db_password
+    db_host              = module.rds_superset.db_instance_address
+    db_port              = tostring(module.rds_superset.db_instance_port)
+    db_connection_string = module.rds_superset.db_connection_string
+  })
+}
+
+# Store Superset app configuration in Secrets Manager
+resource "aws_secretsmanager_secret_version" "superset_app_config" {
+  secret_id = module.secrets.superset_app_config_secret_arn
+  secret_string = jsonencode({
+    secret_key = random_password.superset_secret_key.result
+  })
+}
+
+# ElastiCache Redis for Superset caching
+# checkov:skip=CKV2_AWS_50: Multi-AZ failover variable-based (prod only)
+module "elasticache_redis" {
+  source = "./modules/elasticache-redis"
+
+  environment  = var.environment
+  project_name = var.project_name
+  vpc_id       = module.networking.vpc_id
+  subnet_ids   = module.networking.public_subnet_ids
+
+  # Allow access only from ECS security group
+  allowed_security_group_ids = [module.networking.ecs_security_group_id]
+
+  # Configuration from variables
+  node_type                  = var.redis_node_type
+  num_cache_nodes            = var.redis_num_cache_nodes
+  automatic_failover_enabled = var.redis_automatic_failover_enabled
+  multi_az_enabled           = var.redis_multi_az_enabled
+
+  # Security settings
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  auth_token_enabled         = true
+
+  # Backup settings
+  snapshot_retention_limit = var.environment == "prod" ? 7 : 1
+
+  tags = local.common_tags
+
+  depends_on = [module.networking]
+}
+
+# Store Redis credentials in Secrets Manager
+resource "aws_secretsmanager_secret_version" "redis_credentials" {
+  secret_id = module.secrets.redis_credentials_secret_arn
+  secret_string = jsonencode({
+    auth_token        = module.elasticache_redis.auth_token
+    endpoint          = module.elasticache_redis.redis_endpoint
+    port              = module.elasticache_redis.redis_port
+    connection_string = module.elasticache_redis.redis_connection_string
+  })
+}
+
 # IAM for Superset
 module "iam_superset" {
   source = "./modules/iam"
@@ -142,7 +248,10 @@ module "iam_superset" {
   common_tags  = local.common_tags
 
   # Pass direct module references for secrets
-  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  snowflake_credentials_secret_arn    = module.secrets.snowflake_superset_credentials_secret_arn
+  superset_rds_credentials_secret_arn = module.secrets.superset_rds_credentials_secret_arn
+  superset_app_config_secret_arn      = module.secrets.superset_app_config_secret_arn
+  redis_credentials_secret_arn        = module.secrets.redis_credentials_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
@@ -165,6 +274,19 @@ module "ecs_superset" {
   execution_role_arn = module.iam_superset.ecs_execution_role_arn
   task_role_arn      = module.iam_superset.ecs_task_role_arn
 
+  # Secrets configuration
+  rds_secret_arn                = module.secrets.superset_rds_credentials_secret_arn
+  app_config_secret_arn         = module.secrets.superset_app_config_secret_arn
+  snowflake_superset_secret_arn = module.secrets.snowflake_superset_credentials_secret_arn
+
+  # Redis configuration
+  redis_host       = module.elasticache_redis.redis_endpoint
+  redis_port       = module.elasticache_redis.redis_port
+  redis_secret_arn = var.redis_num_cache_nodes > 1 ? module.secrets.redis_credentials_secret_arn : ""
+
+  # Use custom Docker image from ECR
+  superset_image = "${module.ecr.superset_repository_url}:latest"
+
   # Configuration from environment variables
   enable_load_balancer = var.enable_deletion_protection # Use same logic as ALB protection
 
@@ -174,8 +296,17 @@ module "ecs_superset" {
   desired_count = var.desired_count
 
   tags = local.common_tags
+
+  depends_on = [
+    module.rds_superset,
+    module.elasticache_redis,
+    aws_secretsmanager_secret_version.superset_rds_credentials,
+    aws_secretsmanager_secret_version.superset_app_config,
+    aws_secretsmanager_secret_version.redis_credentials
+  ]
 }
 
+# checkov:skip=CKV_AWS_51: Superset uses 'latest' tag (deployment workflow requirement)
 module "ecr" {
   source = "./modules/ecr"
 
@@ -201,7 +332,7 @@ module "ecs_dbt" {
   tags                  = local.common_tags
 
   # Secrets integration
-  database_secret_name = module.secrets.snowflake_credentials_secret_name
+  database_secret_name = module.secrets.snowflake_dbt_credentials_secret_name
 }
 
 module "monitoring" {
@@ -241,7 +372,7 @@ module "iam" {
   common_tags  = local.common_tags
 
   # Pass direct module references for secrets
-  snowflake_credentials_secret_arn = module.secrets.snowflake_credentials_secret_arn
+  snowflake_credentials_secret_arn = module.secrets.snowflake_dbt_credentials_secret_arn
 
   # Pass direct module references for S3 buckets
   data_lake_bucket_arn      = module.s3_data_lake.data_lake_bucket_arn
