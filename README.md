@@ -11,7 +11,6 @@ The infrastructure consists of the following modules:
 - **ecs-airflow**: Self-deployed Airflow on ECS for workflow orchestration
 - **ecs-superset**: Self-deployed Superset on ECS for business intelligence
 - **snowflake-integration**: IAM roles and S3 stages for Snowflake integration
-- **lambda-serving**: Lambda functions and API Gateway for ML model serving
 - **monitoring**: CloudWatch dashboards, alarms, and SNS notifications
 - **secrets**: AWS Secrets Manager for secure credential storage
 
@@ -40,7 +39,6 @@ platform_infrastructure/
 │   ├── ecs-airflow/
 │   ├── ecs-superset/
 │   ├── snowflake-integration/
-│   ├── lambda-serving/
 │   ├── monitoring/
 │   └── secrets/
 ├── scripts/                   # Cross-platform Python scripts
@@ -65,7 +63,6 @@ platform_infrastructure/
 - **ecs-airflow**: Deploys Apache Airflow webserver and scheduler on ECS Fargate with S3/Secrets access
 - **ecs-superset**: Deploys Apache Superset on ECS Fargate with ALB, health checks, and auto-scaling
 - **snowflake-integration**: Creates IAM roles and S3 stages for Snowflake data loading with managed credentials
-- **lambda-serving**: Creates API Gateway and Lambda for ML model serving with throttling and authentication
 - **monitoring**: Creates CloudWatch dashboards, alarms, and SNS notifications for comprehensive observability
 - **secrets**: Manages application secrets in AWS Secrets Manager with KMS encryption and rotation
 
@@ -83,8 +80,6 @@ platform_infrastructure/
 The infrastructure includes comprehensive monitoring:
 
 - **ECS Metrics**: CPU and memory utilization
-- **Lambda Metrics**: Duration, errors, and invocations
-- **API Gateway Metrics**: 4XX/5XX errors and latency
 - **Application Logs**: Error pattern matching and alerting
 - **Custom Dashboards**: Environment-specific views
 
