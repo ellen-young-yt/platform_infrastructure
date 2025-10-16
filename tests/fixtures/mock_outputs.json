@@ -35,8 +35,8 @@
     "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-airflow",
     "type": "string"
   },
-  "metabase_cluster_arn": {
-    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-metabase",
+  "superset_cluster_arn": {
+    "value": "arn:aws:ecs:us-east-2:123456789012:cluster/ellen-young-yt-dev-superset",
     "type": "string"
   }
 }

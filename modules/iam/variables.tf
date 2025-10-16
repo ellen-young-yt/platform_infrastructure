@@ -6,11 +6,11 @@ variable "service_name" {
 }
 
 variable "service_type" {
-  description = "Type of service (dbt, airflow, metabase) to determine permissions"
+  description = "Type of service (dbt, airflow, superset) to determine permissions"
   type        = string
   validation {
-    condition     = contains(["dbt", "airflow", "metabase"], var.service_type)
-    error_message = "Service type must be one of: dbt, airflow, metabase."
+    condition     = contains(["dbt", "airflow", "superset"], var.service_type)
+    error_message = "Service type must be one of: dbt, airflow, superset."
   }
 }
 
@@ -43,6 +43,18 @@ variable "snowflake_credentials_secret_arn" {
   default     = null
 }
 
+variable "superset_rds_credentials_secret_arn" {
+  description = "ARN of the Superset RDS credentials secret"
+  type        = string
+  default     = null
+}
+
+variable "superset_app_config_secret_arn" {
+  description = "ARN of the Superset app configuration secret"
+  type        = string
+  default     = null
+}
+
 # S3 bucket ARN references - passed from root module
 variable "data_lake_bucket_arn" {
   description = "ARN of the data lake S3 bucket"
@@ -58,6 +70,12 @@ variable "processed_data_bucket_arn" {
 
 variable "artifacts_bucket_arn" {
   description = "ARN of the artifacts S3 bucket"
+  type        = string
+  default     = null
+}
+
+variable "redis_credentials_secret_arn" {
+  description = "ARN of the Redis credentials secret"
   type        = string
   default     = null
 }

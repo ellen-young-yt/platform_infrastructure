@@ -105,3 +105,28 @@ variable "enable_deletion_protection" {
   type        = bool
   default     = false
 }
+
+# Redis Configuration
+variable "redis_node_type" {
+  description = "ElastiCache Redis node type"
+  type        = string
+  default     = "cache.t4g.micro"
+}
+
+variable "redis_num_cache_nodes" {
+  description = "Number of cache nodes (1 for single-node, 2+ for replication)"
+  type        = number
+  default     = 1
+}
+
+variable "redis_automatic_failover_enabled" {
+  description = "Enable automatic failover for Redis (requires num_cache_nodes > 1)"
+  type        = bool
+  default     = false
+}
+
+variable "redis_multi_az_enabled" {
+  description = "Enable Multi-AZ for Redis (requires num_cache_nodes > 1)"
+  type        = bool
+  default     = false
+}

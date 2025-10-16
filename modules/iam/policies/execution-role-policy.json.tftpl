@@ -11,6 +11,19 @@
         "${secret_arn}"${secret_arn != secret_arns[length(secret_arns) - 1] ? "," : ""}
         %{ endfor ~}
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "secretsmanager.us-east-2.amazonaws.com"
+        }
+      }
     }
   ]
 }

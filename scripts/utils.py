@@ -53,24 +53,33 @@ def log_step(message: str) -> None:
 
 @overload
 def run_command(
-    cmd: List[str], cwd: Optional[Path] = None, capture: bool = True, *, simple: Literal[True]
+    cmd: List[str],
+    *,
+    cwd: Optional[Path] = None,
+    capture: bool = True,
+    simple: Literal[True],
+    stdin_input: Optional[str] = None,
 ) -> bool: ...
 
 
 @overload
 def run_command(
-    cmd: List[str], cwd: Optional[Path] = None, capture: bool = True, *, simple: Literal[False]
+    cmd: List[str],
+    *,
+    cwd: Optional[Path] = None,
+    capture: bool = True,
+    simple: Literal[False] = False,
+    stdin_input: Optional[str] = None,
 ) -> Tuple[bool, str, str]: ...
 
 
-@overload
 def run_command(
-    cmd: List[str], cwd: Optional[Path] = None, capture: bool = True
-) -> Tuple[bool, str, str]: ...
-
-
-def run_command(
-    cmd: List[str], cwd: Optional[Path] = None, capture: bool = True, simple: bool = False
+    cmd: List[str],
+    *,
+    cwd: Optional[Path] = None,
+    capture: bool = True,
+    simple: bool = False,
+    stdin_input: Optional[str] = None,
 ) -> Union[bool, Tuple[bool, str, str]]:
     """
     Consolidated command runner with cross-platform support.
@@ -80,6 +89,7 @@ def run_command(
         cwd: Working directory (defaults to current directory)
         capture: Whether to capture output (True) or stream to console (False)
         simple: If True, return only bool success status (for backward compatibility)
+        stdin_input: Optional string to send to stdin (e.g., for password prompts)
 
     Returns:
         If simple=True: bool (success status)
@@ -106,7 +116,14 @@ def run_command(
     try:
         if capture:
             result = subprocess.run(
-                cmd, cwd=cwd, capture_output=True, text=True, check=False, env=env, shell=use_shell
+                cmd,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                shell=use_shell,
+                input=stdin_input,
             )
             success = result.returncode == 0
             if not success:
@@ -118,6 +135,8 @@ def run_command(
                 return success
             return success, result.stdout, result.stderr
         else:
+            if stdin_input:
+                log_warning("stdin_input is ignored when capture=False")
             returncode = subprocess.call(cmd, cwd=cwd, env=env, shell=use_shell)
             success = returncode == 0
             if not success:

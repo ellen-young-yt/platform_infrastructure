@@ -478,13 +478,12 @@ class TerraformManager:
             ".",
             "--framework",
             "terraform",
-            "--quiet",
             "--compact",
             "--download-external-modules",
             "false",
         ]
 
-        success, _, _ = run_command(cmd, cwd=self.root_dir)
+        success, _, _ = run_command(cmd, cwd=self.root_dir, capture=False)
 
         if success:
             log_success("Security scan completed successfully")
