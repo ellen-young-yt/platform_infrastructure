@@ -109,6 +109,7 @@ checkov-report.*
 
 # Test artifacts
 .pytest_cache/
+.mypy_cache/
 .tox/
 
 # OS specific
