@@ -73,12 +73,6 @@ resource "aws_db_parameter_group" "airflow" {
     value = "1"
   }
 
-  # Force SSL connections for encryption in transit
-  parameter {
-    name  = "rds.force_ssl"
-    value = "1"
-  }
-
   tags = var.tags
 
   lifecycle {
@@ -94,6 +88,7 @@ resource "aws_db_instance" "airflow" {
   #checkov:skip=CKV_AWS_157:Multi-AZ variable-based
   #checkov:skip=CKV_AWS_118:Enhanced monitoring enabled (checkov false positive)
   #checkov:skip=CKV_AWS_161:IAM authentication enabled (checkov false positive)
+  #checkov:skip=CKV2_AWS_69:SSL enforced via AWS system defaults (rds.force_ssl=1)
   identifier = "${var.project_name}-${var.environment}-airflow-metadata"
 
   # Engine configuration

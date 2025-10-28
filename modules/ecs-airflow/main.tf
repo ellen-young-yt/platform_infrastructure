@@ -1,11 +1,5 @@
-# CloudWatch Log Group for Airflow containers
-resource "aws_cloudwatch_log_group" "airflow" {
-  name              = "/ecs/${var.project_name}-${var.environment}-airflow"
-  retention_in_days = var.environment == "prod" ? 30 : 7
-
-  tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-airflow-logs"
-  })
+locals {
+  log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
 }
 
 resource "aws_ecs_cluster" "airflow" {
@@ -31,10 +25,6 @@ resource "aws_ecs_cluster_capacity_providers" "airflow" {
     weight            = 100
     capacity_provider = "FARGATE"
   }
-}
-
-locals {
-  log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
 }
 
 resource "aws_ecs_task_definition" "airflow_webserver" {

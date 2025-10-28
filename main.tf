@@ -445,6 +445,9 @@ module "monitoring" {
     "/ecs/${var.project_name}-${var.environment}-${var.service_name}"
   ]
 
+  # Log retention based on environment
+  log_retention_days = var.environment == "prod" ? 30 : 7
+
   # Pass direct module reference for S3 bucket
   data_lake_bucket_id = module.s3_data_lake.data_lake_bucket_id
 
