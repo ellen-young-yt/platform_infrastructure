@@ -109,6 +109,79 @@ module "iam_airflow" {
   depends_on = [module.s3_data_lake, module.secrets]
 }
 
+# RDS for Airflow metadata
+# checkov:skip=CKV_AWS_17: RDS in public subnet (cost optimization - no NAT gateway)
+# checkov:skip=CKV_AWS_293: Deletion protection variable-based (prod only)
+# checkov:skip=CKV_AWS_353: Performance Insights variable-based (prod only)
+# checkov:skip=CKV_AWS_157: Multi-AZ variable-based (prod only)
+module "rds_airflow" {
+  source = "./modules/rds-airflow"
+
+  environment       = var.environment
+  project_name      = var.project_name
+  subnet_ids        = module.networking.public_subnet_ids
+  security_group_id = module.networking.rds_security_group_id
+
+  # Database configuration
+  db_name                   = "airflow"
+  db_username               = "airflow"
+  instance_class            = var.environment == "prod" ? "db.t4g.small" : "db.t4g.micro"
+  allocated_storage         = 20
+  max_allocated_storage     = 100
+  engine_version            = "16.8"
+  db_parameter_group_family = "postgres16"
+
+  # Backup configuration
+  backup_retention_period     = var.environment == "prod" ? 30 : 7
+  multi_az                    = var.environment == "prod" ? true : false
+  deletion_protection         = var.environment == "prod" ? true : false
+  skip_final_snapshot         = var.environment != "prod"
+  enable_performance_insights = var.environment == "prod" ? true : false
+  enable_enhanced_monitoring  = true # Minimal cost (~$1.17/month), enable in all environments
+  enable_iam_authentication   = true # No cost, enable in all environments
+
+  tags = local.common_tags
+
+  depends_on = [module.networking]
+}
+
+# Store Airflow RDS credentials in Secrets Manager
+resource "aws_secretsmanager_secret_version" "airflow_rds_credentials" {
+  secret_id = module.secrets.airflow_rds_credentials_secret_arn
+  secret_string = jsonencode({
+    db_name              = module.rds_airflow.db_name
+    db_username          = module.rds_airflow.db_username
+    db_password          = module.rds_airflow.db_password
+    db_host              = module.rds_airflow.db_instance_address
+    db_port              = tostring(module.rds_airflow.db_instance_port)
+    db_connection_string = module.rds_airflow.db_connection_string
+  })
+}
+
+# Generate Airflow Fernet key for encrypting sensitive data
+resource "random_password" "airflow_fernet_key" {
+  length  = 32
+  special = false # Fernet key must be URL-safe base64
+}
+
+# Store Airflow Fernet key in Secrets Manager
+resource "aws_secretsmanager_secret_version" "airflow_fernet_key" {
+  secret_id     = module.secrets.airflow_fernet_key_secret_arn
+  secret_string = base64encode(random_password.airflow_fernet_key.result)
+}
+
+# Generate Airflow webserver secret key
+resource "random_password" "airflow_webserver_secret_key" {
+  length  = 32
+  special = true
+}
+
+# Store Airflow webserver secret key in Secrets Manager
+resource "aws_secretsmanager_secret_version" "airflow_webserver_secret_key" {
+  secret_id     = module.secrets.airflow_webserver_secret_key_arn
+  secret_string = random_password.airflow_webserver_secret_key.result
+}
+
 module "ecs_airflow" {
   source = "./modules/ecs-airflow"
 
@@ -122,6 +195,15 @@ module "ecs_airflow" {
   execution_role_arn = module.iam_airflow.ecs_execution_role_arn
   task_role_arn      = module.iam_airflow.ecs_task_role_arn
 
+  # Use custom Docker image from ECR
+  airflow_image = "${module.ecr.airflow_repository_url}:latest"
+
+  # Database configuration
+  database_connection_string = module.rds_airflow.db_connection_string
+
+  # Secrets configuration
+  airflow_webserver_secret_key_arn = module.secrets.airflow_webserver_secret_key_arn
+
   # Resource configuration from environment variables
   webserver_cpu    = var.task_cpu
   webserver_memory = var.task_memory
@@ -129,6 +211,13 @@ module "ecs_airflow" {
   scheduler_memory = var.task_memory
 
   tags = local.common_tags
+
+  depends_on = [
+    module.rds_airflow,
+    aws_secretsmanager_secret_version.airflow_rds_credentials,
+    aws_secretsmanager_secret_version.airflow_fernet_key,
+    aws_secretsmanager_secret_version.airflow_webserver_secret_key
+  ]
 }
 
 # RDS for Superset metadata
