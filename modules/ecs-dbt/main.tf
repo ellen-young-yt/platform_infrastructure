@@ -56,8 +56,32 @@ resource "aws_ecs_task_definition" "dbt" {
 
       secrets = [
         {
-          name      = "SNOWFLAKE_CREDENTIALS"
-          valueFrom = var.database_secret_name
+          name      = "SNOWFLAKE_ACCOUNT"
+          valueFrom = "${var.database_secret_arn}:account::"
+        },
+        {
+          name      = "SNOWFLAKE_USER"
+          valueFrom = "${var.database_secret_arn}:user::"
+        },
+        {
+          name      = "SNOWFLAKE_ROLE"
+          valueFrom = "${var.database_secret_arn}:role::"
+        },
+        {
+          name      = "SNOWFLAKE_DATABASE"
+          valueFrom = "${var.database_secret_arn}:database::"
+        },
+        {
+          name      = "SNOWFLAKE_WAREHOUSE"
+          valueFrom = "${var.database_secret_arn}:warehouse::"
+        },
+        {
+          name      = "SNOWFLAKE_SCHEMA"
+          valueFrom = "${var.database_secret_arn}:schema::"
+        },
+        {
+          name      = "SNOWFLAKE_PRIVATE_KEY"
+          valueFrom = "${var.database_secret_arn}:private_key::"
         }
       ]
 

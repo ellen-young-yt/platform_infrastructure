@@ -422,7 +422,7 @@ module "ecs_dbt" {
   tags                  = local.common_tags
 
   # Secrets integration
-  database_secret_name = module.secrets.snowflake_dbt_credentials_secret_name
+  database_secret_arn = module.secrets.snowflake_dbt_credentials_secret_arn
 }
 
 module "monitoring" {
