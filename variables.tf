@@ -106,6 +106,13 @@ variable "enable_deletion_protection" {
   default     = false
 }
 
+variable "superset_ssl_certificate_arn" {
+  description = "ARN of the SSL certificate for Superset ALB HTTPS listener (leave empty to use HTTP only)"
+  type        = string
+  default     = ""
+  sensitive   = false
+}
+
 # Redis Configuration
 variable "redis_node_type" {
   description = "ElastiCache Redis node type"
