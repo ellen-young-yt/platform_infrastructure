@@ -72,3 +72,43 @@ output "superset_app_config_secret_name" {
   description = "Name of the Superset application configuration secret"
   value       = aws_secretsmanager_secret.superset_app_config.name
 }
+
+output "airflow_rds_credentials_secret_arn" {
+  description = "ARN of the Airflow RDS credentials secret"
+  value       = aws_secretsmanager_secret.airflow_rds_credentials.arn
+}
+
+output "airflow_rds_credentials_secret_name" {
+  description = "Name of the Airflow RDS credentials secret"
+  value       = aws_secretsmanager_secret.airflow_rds_credentials.name
+}
+
+output "airflow_fernet_key_secret_arn" {
+  description = "ARN of the Airflow Fernet key secret"
+  value       = aws_secretsmanager_secret.airflow_fernet_key.arn
+}
+
+output "airflow_fernet_key_secret_name" {
+  description = "Name of the Airflow Fernet key secret"
+  value       = aws_secretsmanager_secret.airflow_fernet_key.name
+}
+
+output "airflow_webserver_secret_key_arn" {
+  description = "ARN of the Airflow webserver secret key"
+  value       = aws_secretsmanager_secret.airflow_webserver_secret_key.arn
+}
+
+output "airflow_webserver_secret_key_name" {
+  description = "Name of the Airflow webserver secret key"
+  value       = aws_secretsmanager_secret.airflow_webserver_secret_key.name
+}
+
+output "airflow_jwt_secret_arn" {
+  description = "ARN of the Airflow JWT secret"
+  value       = aws_secretsmanager_secret.airflow_jwt_secret.arn
+}
+
+output "airflow_jwt_secret_name" {
+  description = "Name of the Airflow JWT secret"
+  value       = aws_secretsmanager_secret.airflow_jwt_secret.name
+}

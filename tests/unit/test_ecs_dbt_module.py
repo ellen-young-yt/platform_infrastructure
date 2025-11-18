@@ -77,8 +77,18 @@ class TestECSDbtModule:
 
         # Check secrets configuration
         assert "secrets = [" in content
-        assert re.search(r'name\s*=\s*"SNOWFLAKE_CREDENTIALS"', content)
-        assert re.search(r"valueFrom\s*=\s*var.database_secret_name", content)
+
+        # Verify individual Snowflake secrets are configured
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_ACCOUNT"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_USER"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_ROLE"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_DATABASE"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_WAREHOUSE"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_SCHEMA"', content)
+        assert re.search(r'name\s*=\s*"SNOWFLAKE_PRIVATE_KEY"', content)
+
+        # Verify secrets reference the database_secret_arn variable
+        assert re.search(r"valueFrom\s*=\s*\"\$\{var\.database_secret_arn\}", content)
 
     def test_ecs_dbt_logging_configuration(self, main_tf_path):
         """Test ECS logging is properly configured."""

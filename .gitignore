@@ -112,6 +112,9 @@ checkov-report.*
 .mypy_cache/
 .tox/
 
+# MyPy cache
+.mypy_cache/
+
 # OS specific
 Thumbs.db:encryptable
 

@@ -54,6 +54,50 @@ resource "aws_secretsmanager_secret" "superset_app_config" {
   })
 }
 
+resource "aws_secretsmanager_secret" "airflow_rds_credentials" {
+  name                    = "${var.project_name}/${var.environment}/airflow/rds-credentials"
+  description             = "RDS database credentials for Airflow metadata in ${var.environment} environment"
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
+
+  tags = merge(var.tags, {
+    Purpose = "Airflow RDS credentials"
+  })
+}
+
+resource "aws_secretsmanager_secret" "airflow_fernet_key" {
+  name                    = "${var.project_name}/${var.environment}/airflow/fernet-key"
+  description             = "Airflow Fernet key for encrypting sensitive data in ${var.environment} environment"
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
+
+  tags = merge(var.tags, {
+    Purpose = "Airflow Fernet key"
+  })
+}
+
+resource "aws_secretsmanager_secret" "airflow_webserver_secret_key" {
+  name                    = "${var.project_name}/${var.environment}/airflow/webserver-secret-key"
+  description             = "Airflow webserver secret key for session management in ${var.environment} environment"
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
+
+  tags = merge(var.tags, {
+    Purpose = "Airflow webserver secret key"
+  })
+}
+
+resource "aws_secretsmanager_secret" "airflow_jwt_secret" {
+  name                    = "${var.project_name}/${var.environment}/airflow/jwt-secret"
+  description             = "Airflow JWT secret for token signing in ${var.environment} environment"
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+  kms_key_id              = var.enable_kms_encryption ? aws_kms_key.secrets[0].arn : null
+
+  tags = merge(var.tags, {
+    Purpose = "Airflow JWT secret"
+  })
+}
+
 resource "aws_iam_role" "secrets_access" {
   name = "${var.project_name}-${var.environment}-secrets-access-role"
 
@@ -93,7 +137,11 @@ resource "aws_iam_role_policy" "secrets_access" {
           aws_secretsmanager_secret.snowflake_superset_credentials.arn,
           aws_secretsmanager_secret.redis_credentials.arn,
           aws_secretsmanager_secret.superset_rds_credentials.arn,
-          aws_secretsmanager_secret.superset_app_config.arn
+          aws_secretsmanager_secret.superset_app_config.arn,
+          aws_secretsmanager_secret.airflow_rds_credentials.arn,
+          aws_secretsmanager_secret.airflow_fernet_key.arn,
+          aws_secretsmanager_secret.airflow_webserver_secret_key.arn,
+          aws_secretsmanager_secret.airflow_jwt_secret.arn
         ]
       }
     ]
@@ -141,7 +189,11 @@ resource "aws_iam_role_policy" "secrets_rotation" {
           aws_secretsmanager_secret.snowflake_superset_credentials.arn,
           aws_secretsmanager_secret.redis_credentials.arn,
           aws_secretsmanager_secret.superset_rds_credentials.arn,
-          aws_secretsmanager_secret.superset_app_config.arn
+          aws_secretsmanager_secret.superset_app_config.arn,
+          aws_secretsmanager_secret.airflow_rds_credentials.arn,
+          aws_secretsmanager_secret.airflow_fernet_key.arn,
+          aws_secretsmanager_secret.airflow_webserver_secret_key.arn,
+          aws_secretsmanager_secret.airflow_jwt_secret.arn
         ]
       },
       {
