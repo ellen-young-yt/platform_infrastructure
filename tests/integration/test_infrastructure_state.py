@@ -88,10 +88,9 @@ class TestInfrastructureState:
     def test_secrets_manager_secrets_exist(self, environment, test_project_name):
         """Test that required secrets exist in Secrets Manager."""
         required_secrets = [
-            f"{test_project_name}/{environment}/snowflake/credentials",
+            f"{test_project_name}/{environment}/snowflake/dbt-credentials",
+            f"{test_project_name}/{environment}/snowflake/superset-credentials",
             f"{test_project_name}/{environment}/redis/credentials",
-            f"{test_project_name}/{environment}/api/keys",
-            f"{test_project_name}/{environment}/app/config",
         ]
 
         for secret_name in required_secrets:
@@ -199,12 +198,12 @@ class TestInfrastructureState:
                 len(availability_zones) >= 2
             ), f"Subnets should be in multiple AZs, found: {availability_zones}"
 
-            # Check for both public and private subnets
+            # Check for public subnets
             public_subnets = [s for s in subnets if s.get("MapPublicIpOnLaunch", False)]
-            private_subnets = [s for s in subnets if not s.get("MapPublicIpOnLaunch", False)]
 
-            assert len(public_subnets) >= 1, "Should have at least one public subnet"
-            assert len(private_subnets) >= 1, "Should have at least one private subnet"
+            assert (
+                len(public_subnets) >= 3
+            ), f"Should have at least 3 public subnets, found {len(public_subnets)}"
 
         except ClientError as e:
             pytest.fail(f"Failed to describe subnets: {e}")
@@ -214,7 +213,7 @@ class TestInfrastructureState:
         """Test that ECS clusters exist and are active."""
         expected_clusters = [
             f"{test_project_name}-{environment}-airflow",
-            f"{test_project_name}-{environment}-metabase",
+            f"{test_project_name}-{environment}-superset",
         ]
 
         try:

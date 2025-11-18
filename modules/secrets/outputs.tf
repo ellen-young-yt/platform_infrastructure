@@ -1,11 +1,21 @@
-output "snowflake_credentials_secret_arn" {
-  description = "ARN of the Snowflake credentials secret"
-  value       = aws_secretsmanager_secret.snowflake_credentials.arn
+output "snowflake_dbt_credentials_secret_arn" {
+  description = "ARN of the Snowflake dbt credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_dbt_credentials.arn
 }
 
-output "snowflake_credentials_secret_name" {
-  description = "Name of the Snowflake credentials secret"
-  value       = aws_secretsmanager_secret.snowflake_credentials.name
+output "snowflake_dbt_credentials_secret_name" {
+  description = "Name of the Snowflake dbt credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_dbt_credentials.name
+}
+
+output "snowflake_superset_credentials_secret_arn" {
+  description = "ARN of the Snowflake Superset credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_superset_credentials.arn
+}
+
+output "snowflake_superset_credentials_secret_name" {
+  description = "Name of the Snowflake Superset credentials secret"
+  value       = aws_secretsmanager_secret.snowflake_superset_credentials.name
 }
 
 output "redis_credentials_secret_arn" {
@@ -16,26 +26,6 @@ output "redis_credentials_secret_arn" {
 output "redis_credentials_secret_name" {
   description = "Name of the Redis credentials secret"
   value       = aws_secretsmanager_secret.redis_credentials.name
-}
-
-output "api_keys_secret_arn" {
-  description = "ARN of the API keys secret"
-  value       = aws_secretsmanager_secret.api_keys.arn
-}
-
-output "api_keys_secret_name" {
-  description = "Name of the API keys secret"
-  value       = aws_secretsmanager_secret.api_keys.name
-}
-
-output "app_config_secret_arn" {
-  description = "ARN of the application config secret"
-  value       = aws_secretsmanager_secret.app_config.arn
-}
-
-output "app_config_secret_name" {
-  description = "Name of the application config secret"
-  value       = aws_secretsmanager_secret.app_config.name
 }
 
 output "secrets_access_role_arn" {
@@ -61,4 +51,24 @@ output "kms_key_id" {
 output "kms_alias_name" {
   description = "Alias name of the KMS key"
   value       = var.enable_kms_encryption ? aws_kms_alias.secrets[0].name : null
+}
+
+output "superset_rds_credentials_secret_arn" {
+  description = "ARN of the Superset RDS credentials secret"
+  value       = aws_secretsmanager_secret.superset_rds_credentials.arn
+}
+
+output "superset_rds_credentials_secret_name" {
+  description = "Name of the Superset RDS credentials secret"
+  value       = aws_secretsmanager_secret.superset_rds_credentials.name
+}
+
+output "superset_app_config_secret_arn" {
+  description = "ARN of the Superset application configuration secret"
+  value       = aws_secretsmanager_secret.superset_app_config.arn
+}
+
+output "superset_app_config_secret_name" {
+  description = "Name of the Superset application configuration secret"
+  value       = aws_secretsmanager_secret.superset_app_config.name
 }
