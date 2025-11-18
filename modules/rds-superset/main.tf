@@ -2,7 +2,7 @@ data "aws_region" "current" {}
 
 # IAM Role for RDS Enhanced Monitoring
 resource "aws_iam_role" "rds_monitoring" {
-  name = "${var.project_name}-${var.environment}-rds-monitoring-role"
+  name = "${var.project_name}-${var.environment}-rds-superset-monitoring-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,7 +18,7 @@ resource "aws_iam_role" "rds_monitoring" {
   })
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-rds-monitoring-role"
+    Name = "${var.project_name}-${var.environment}-rds-superset-monitoring-role"
   })
 }
 

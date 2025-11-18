@@ -31,5 +31,35 @@
       "secretsmanager:GetSecretValue"
     ],
     "Resource": "arn:aws:secretsmanager:*:*:secret:${project_name}/${environment}/*"
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "ecs:RunTask",
+      "ecs:DescribeTasks",
+      "ecs:StopTask"
+    ],
+    "Resource": [
+      "arn:aws:ecs:*:*:task-definition/*-${environment}:*",
+      "arn:aws:ecs:*:*:task/*"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": "iam:PassRole",
+    "Resource": "arn:aws:iam::*:role/*",
+    "Condition": {
+      "StringLike": {
+        "iam:PassedToService": "ecs-tasks.amazonaws.com"
+      }
+    }
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ],
+    "Resource": "arn:aws:logs:*:*:log-group:/ecs/*-${environment}:*"
   }
 ]
