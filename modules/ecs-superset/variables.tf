@@ -65,6 +65,12 @@ variable "enable_load_balancer" {
   default     = true
 }
 
+variable "ssl_certificate_arn" {
+  description = "ARN of the SSL certificate for HTTPS listener (leave empty to use HTTP only)"
+  type        = string
+  default     = ""
+}
+
 variable "execution_role_arn" {
   description = "ARN of the ECS task execution role"
   type        = string
