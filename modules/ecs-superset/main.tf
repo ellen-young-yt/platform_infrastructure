@@ -292,6 +292,139 @@ resource "aws_ecs_task_definition" "superset" {
   tags = var.tags
 }
 
+# KMS key for ALB logs bucket encryption
+resource "aws_kms_key" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  description             = "KMS key for ${var.project_name}-${var.environment} Superset ALB logs encryption"
+  deletion_window_in_days = var.environment == "prod" ? 30 : 7
+  enable_key_rotation     = var.environment == "prod" ? true : false
+
+  tags = merge(var.tags, {
+    Purpose = "ALB logs encryption"
+  })
+}
+
+resource "aws_kms_alias" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  name          = "alias/${var.project_name}-${var.environment}-superset-alb-logs"
+  target_key_id = aws_kms_key.alb_logs[0].key_id
+}
+
+# S3 bucket for ALB access logs
+resource "aws_s3_bucket" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = "${var.project_name}-${var.environment}-superset-alb-logs"
+
+  tags = merge(var.tags, {
+    Name    = "${var.project_name}-${var.environment}-superset-alb-logs"
+    Purpose = "ALB access logs"
+  })
+}
+
+resource "aws_s3_bucket_public_access_block" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  rule {
+    id     = "delete-old-logs"
+    status = "Enabled"
+
+    expiration {
+      days = var.environment == "prod" ? 90 : 30
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 7
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.alb_logs[0].arn
+    }
+  }
+}
+
+# ALB service account IDs by region (for access logs)
+# https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
+locals {
+  alb_service_account_ids = {
+    us-east-1      = "127311923021"
+    us-east-2      = "033677994240"
+    us-west-1      = "027434742980"
+    us-west-2      = "797873946194"
+    eu-west-1      = "156460612806"
+    eu-central-1   = "054676820928"
+    ap-southeast-1 = "114774131450"
+    ap-southeast-2 = "783225319266"
+    ap-northeast-1 = "582318560864"
+  }
+}
+
+data "aws_region" "current" {}
+
+resource "aws_s3_bucket_policy" "alb_logs" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  bucket = aws_s3_bucket.alb_logs[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSLogDeliveryWrite"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${lookup(local.alb_service_account_ids, data.aws_region.current.name, "127311923021")}:root"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.alb_logs[0].arn}/*"
+      },
+      {
+        Sid    = "AWSLogDeliveryAclCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "elasticloadbalancing.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.alb_logs[0].arn
+      }
+    ]
+  })
+}
+
 resource "aws_lb" "superset" {
   count = var.enable_load_balancer ? 1 : 0
 
@@ -302,6 +435,12 @@ resource "aws_lb" "superset" {
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = var.environment == "prod" ? true : false
+  drop_invalid_header_fields = true
+
+  access_logs {
+    bucket  = aws_s3_bucket.alb_logs[0].id
+    enabled = true
+  }
 
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-superset-alb"
@@ -314,6 +453,7 @@ resource "aws_security_group" "alb" {
   name_prefix = "${var.project_name}-${var.environment}-superset-alb-"
   vpc_id      = var.vpc_id
 
+  #checkov:skip=CKV_AWS_260:Public web application requires HTTP access for redirect to HTTPS
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -366,12 +506,37 @@ resource "aws_lb_target_group" "superset" {
   tags = var.tags
 }
 
-resource "aws_lb_listener" "superset" {
+resource "aws_lb_listener" "superset_http" {
   count = var.enable_load_balancer ? 1 : 0
 
   load_balancer_arn = aws_lb.superset[0].arn
   port              = "80"
   protocol          = "HTTP"
+
+  default_action {
+    type = var.ssl_certificate_arn != "" ? "redirect" : "forward"
+
+    dynamic "redirect" {
+      for_each = var.ssl_certificate_arn != "" ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+
+    target_group_arn = var.ssl_certificate_arn == "" ? aws_lb_target_group.superset[0].arn : null
+  }
+}
+
+resource "aws_lb_listener" "superset_https" {
+  count = var.enable_load_balancer && var.ssl_certificate_arn != "" ? 1 : 0
+
+  load_balancer_arn = aws_lb.superset[0].arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.ssl_certificate_arn
 
   default_action {
     type             = "forward"
@@ -401,9 +566,7 @@ resource "aws_ecs_service" "superset" {
     }
   }
 
-  depends_on = [aws_lb_listener.superset]
+  depends_on = [aws_lb_listener.superset_http]
 
   tags = var.tags
 }
-
-data "aws_region" "current" {}

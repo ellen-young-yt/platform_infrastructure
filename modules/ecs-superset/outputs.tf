@@ -48,3 +48,13 @@ output "init_task_definition_family" {
   description = "Family name of the Superset initialization task definition"
   value       = aws_ecs_task_definition.superset_init.family
 }
+
+output "alb_logs_bucket_name" {
+  description = "Name of the S3 bucket for ALB access logs (empty if ALB disabled)"
+  value       = var.enable_load_balancer ? aws_s3_bucket.alb_logs[0].id : ""
+}
+
+output "alb_logs_bucket_arn" {
+  description = "ARN of the S3 bucket for ALB access logs (empty if ALB disabled)"
+  value       = var.enable_load_balancer ? aws_s3_bucket.alb_logs[0].arn : ""
+}

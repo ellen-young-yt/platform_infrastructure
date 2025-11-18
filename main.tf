@@ -378,6 +378,7 @@ module "ecs_superset" {
 
   # Configuration from environment variables
   enable_load_balancer = var.enable_deletion_protection # Use same logic as ALB protection
+  ssl_certificate_arn  = var.superset_ssl_certificate_arn
 
   # Resource configuration
   cpu           = var.task_cpu
