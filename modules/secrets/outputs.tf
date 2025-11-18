@@ -102,3 +102,13 @@ output "airflow_webserver_secret_key_name" {
   description = "Name of the Airflow webserver secret key"
   value       = aws_secretsmanager_secret.airflow_webserver_secret_key.name
 }
+
+output "airflow_jwt_secret_arn" {
+  description = "ARN of the Airflow JWT secret"
+  value       = aws_secretsmanager_secret.airflow_jwt_secret.arn
+}
+
+output "airflow_jwt_secret_name" {
+  description = "Name of the Airflow JWT secret"
+  value       = aws_secretsmanager_secret.airflow_jwt_secret.name
+}
