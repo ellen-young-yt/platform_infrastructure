@@ -293,12 +293,41 @@ resource "aws_ecs_task_definition" "superset" {
 }
 
 # KMS key for ALB logs bucket encryption
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "alb_logs" {
   count = var.enable_load_balancer ? 1 : 0
 
   description             = "KMS key for ${var.project_name}-${var.environment} Superset ALB logs encryption"
   deletion_window_in_days = var.environment == "prod" ? 30 : 7
   enable_key_rotation     = var.environment == "prod" ? true : false
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow ELB service to encrypt logs"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::033677994240:root"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = merge(var.tags, {
     Purpose = "ALB logs encryption"
@@ -344,6 +373,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
     id     = "delete-old-logs"
     status = "Enabled"
 
+    filter {}
+
     expiration {
       days = var.environment == "prod" ? 90 : 30
     }
@@ -377,22 +408,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
   }
 }
 
-# ALB service account IDs by region (for access logs)
-# https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
-locals {
-  alb_service_account_ids = {
-    us-east-1      = "127311923021"
-    us-east-2      = "033677994240"
-    us-west-1      = "027434742980"
-    us-west-2      = "797873946194"
-    eu-west-1      = "156460612806"
-    eu-central-1   = "054676820928"
-    ap-southeast-1 = "114774131450"
-    ap-southeast-2 = "783225319266"
-    ap-northeast-1 = "582318560864"
-  }
-}
-
 data "aws_region" "current" {}
 
 resource "aws_s3_bucket_policy" "alb_logs" {
@@ -407,19 +422,10 @@ resource "aws_s3_bucket_policy" "alb_logs" {
         Sid    = "AWSLogDeliveryWrite"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::${lookup(local.alb_service_account_ids, data.aws_region.current.name, "127311923021")}:root"
+          AWS = "arn:aws:iam::033677994240:root"
         }
         Action   = "s3:PutObject"
         Resource = "${aws_s3_bucket.alb_logs[0].arn}/*"
-      },
-      {
-        Sid    = "AWSLogDeliveryAclCheck"
-        Effect = "Allow"
-        Principal = {
-          Service = "elasticloadbalancing.amazonaws.com"
-        }
-        Action   = "s3:GetBucketAcl"
-        Resource = aws_s3_bucket.alb_logs[0].arn
       }
     ]
   })
