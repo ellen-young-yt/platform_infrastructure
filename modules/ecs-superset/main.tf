@@ -445,6 +445,8 @@ resource "aws_lb" "superset" {
   tags = merge(var.tags, {
     Name = "${var.project_name}-${var.environment}-superset-alb"
   })
+
+  depends_on = [aws_s3_bucket_policy.alb_logs]
 }
 
 resource "aws_security_group" "alb" {
