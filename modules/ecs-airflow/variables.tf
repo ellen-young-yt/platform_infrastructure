@@ -14,8 +14,8 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "private_subnet_ids" {
-  description = "IDs of the private subnets"
+variable "public_subnet_ids" {
+  description = "IDs of the public subnets"
   type        = list(string)
 }
 
@@ -61,13 +61,6 @@ variable "database_connection_string" {
   sensitive   = true
 }
 
-variable "redis_connection_string" {
-  description = "Redis connection string for Celery broker"
-  type        = string
-  default     = "redis://localhost:6379/0"
-  sensitive   = true
-}
-
 variable "execution_role_arn" {
   description = "ARN of the ECS task execution role"
   type        = string
@@ -76,6 +69,12 @@ variable "execution_role_arn" {
 variable "task_role_arn" {
   description = "ARN of the ECS task role"
   type        = string
+}
+
+variable "airflow_webserver_secret_key_arn" {
+  description = "ARN of the Airflow webserver secret key in AWS Secrets Manager"
+  type        = string
+  sensitive   = true
 }
 
 variable "tags" {

@@ -109,7 +109,11 @@ checkov-report.*
 
 # Test artifacts
 .pytest_cache/
+.mypy_cache/
 .tox/
+
+# MyPy cache
+.mypy_cache/
 
 # OS specific
 Thumbs.db:encryptable

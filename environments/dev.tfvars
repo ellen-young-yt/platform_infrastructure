@@ -14,8 +14,8 @@ task_cpu       = "512"
 task_memory    = "1024"
 desired_count  = 1
 
-# ALB Configuration - Disabled for cost savings
-enable_deletion_protection = false
+# ALB Configuration - Enabled for Superset UI access
+enable_deletion_protection = true
 
 # Environment-specific application variables
 ecs_environment_variables = {
@@ -25,3 +25,9 @@ ecs_environment_variables = {
   ENVIRONMENT      = "dev"
   LOG_LEVEL        = "DEBUG"
 }
+
+# Redis Configuration - Development (single-node, no failover)
+redis_node_type                  = "cache.t4g.micro"
+redis_num_cache_nodes            = 1
+redis_automatic_failover_enabled = false
+redis_multi_az_enabled           = false

@@ -103,6 +103,26 @@ security-scan:
 	@python scripts/manage.py security-scan
 
 #
+# === DOCKER OPERATIONS ===
+#
+
+## superset-build: Build custom Superset Docker image
+superset-build:
+	@python scripts/superset_manager.py build $(ENV)
+
+## superset-push: Build and push custom Superset Docker image to ECR
+superset-push:
+	@python scripts/superset_manager.py build $(ENV) --then push
+
+## superset-deploy: Build, push, and deploy Superset with new image
+superset-deploy:
+	@python scripts/superset_manager.py build $(ENV) --then push --then deploy
+
+## superset-logs: Tail Superset container logs
+superset-logs:
+	@aws logs tail /ecs/ellen-young-yt-$(ENV)-superset --follow
+
+#
 # === UTILITIES ===
 #
 
@@ -114,6 +134,9 @@ clean:
 check-aws:
 	@python scripts/manage.py check-aws
 
+## secrets: Set secrets in AWS Secrets Manager for specified environment
+secrets:
+	@python dev-scripts/set-secrets.py --env $(ENV)
 
 ## docs: Generate documentation
 docs:
@@ -144,4 +167,4 @@ pre-commit:
 setup-tests:
 	@python -c "from scripts.utils import log_warning; log_warning('Test structure is automatically managed')"
 	@python -c "import os; [os.makedirs(d, exist_ok=True) for d in ['tests/unit', 'tests/integration', 'tests/fixtures']]"
-	@touch tests/__init__.py tests/unit/__init__.py tests/integration/__init__.py
+	@python -c "from pathlib import Path; [Path(f).touch() for f in ['tests/__init__.py', 'tests/unit/__init__.py', 'tests/integration/__init__.py']]"

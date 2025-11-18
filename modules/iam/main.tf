@@ -10,8 +10,9 @@ locals {
   execution_role_policy = templatefile("${path.module}/policies/execution-role-policy.json.tftpl", {
     secret_arns = compact([
       var.snowflake_credentials_secret_arn,
-      var.app_config_secret_arn,
-      var.api_keys_secret_arn
+      var.superset_rds_credentials_secret_arn,
+      var.superset_app_config_secret_arn,
+      var.redis_credentials_secret_arn
     ])
   })
 
@@ -28,7 +29,7 @@ locals {
     environment  = var.environment
   }))
 
-  metabase_policies = jsondecode(templatefile("${path.module}/policies/metabase-policies.json.tftpl", {
+  superset_policies = jsondecode(templatefile("${path.module}/policies/superset-policies.json.tftpl", {
     project_name = var.project_name
     environment  = var.environment
   }))
@@ -45,7 +46,7 @@ locals {
     lookup({
       dbt      = local.dbt_policies
       airflow  = local.airflow_policies
-      metabase = local.metabase_policies
+      superset = local.superset_policies
     }, var.service_type, []),
     var.additional_policy_statements
   )
@@ -113,7 +114,6 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
 
 # Execution role policy for secrets access during container startup
 resource "aws_iam_policy" "ecs_execution_policy" {
-  count       = var.service_type == "dbt" ? 1 : 0
   name        = "${var.service_name}-${var.environment}-execution-policy"
   description = "Execution policy for ${var.service_name} ECS tasks - secrets access"
 
@@ -140,11 +140,10 @@ resource "aws_iam_policy" "ecs_task_policy" {
   })
 }
 
-# Attach execution policy to execution role (only for dbt service)
+# Attach execution policy to execution role
 resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
-  count      = var.service_type == "dbt" ? 1 : 0
   role       = aws_iam_role.ecs_execution_role.name
-  policy_arn = aws_iam_policy.ecs_execution_policy[0].arn
+  policy_arn = aws_iam_policy.ecs_execution_policy.arn
 }
 
 # Attach task policy to task role
