@@ -1,3 +1,7 @@
+locals {
+  log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
+}
+
 resource "aws_ecs_cluster" "airflow" {
   name = "${var.project_name}-${var.environment}-airflow"
 
@@ -21,10 +25,6 @@ resource "aws_ecs_cluster_capacity_providers" "airflow" {
     weight            = 100
     capacity_provider = "FARGATE"
   }
-}
-
-locals {
-  log_group_name = "/ecs/${var.project_name}-${var.environment}-airflow"
 }
 
 resource "aws_ecs_task_definition" "airflow_webserver" {
@@ -52,15 +52,18 @@ resource "aws_ecs_task_definition" "airflow_webserver" {
       environment = [
         {
           name  = "AIRFLOW__CORE__EXECUTOR"
-          value = "CeleryExecutor"
+          value = "LocalExecutor"
         },
         {
           name  = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
           value = var.database_connection_string
-        },
+        }
+      ]
+
+      secrets = [
         {
-          name  = "AIRFLOW__CELERY__BROKER_URL"
-          value = var.redis_connection_string
+          name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
+          valueFrom = var.airflow_webserver_secret_key_arn
         }
       ]
 
@@ -98,15 +101,11 @@ resource "aws_ecs_task_definition" "airflow_scheduler" {
       environment = [
         {
           name  = "AIRFLOW__CORE__EXECUTOR"
-          value = "CeleryExecutor"
+          value = "LocalExecutor"
         },
         {
           name  = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
           value = var.database_connection_string
-        },
-        {
-          name  = "AIRFLOW__CELERY__BROKER_URL"
-          value = var.redis_connection_string
         }
       ]
 

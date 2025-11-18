@@ -36,18 +36,18 @@ resource "random_password" "db_password" {
 }
 
 # DB Subnet Group (RDS requires subnets in at least 2 AZs)
-resource "aws_db_subnet_group" "superset" {
-  name       = "${var.project_name}-${var.environment}-superset-db-subnet"
+resource "aws_db_subnet_group" "airflow" {
+  name       = "${var.project_name}-${var.environment}-airflow-db-subnet"
   subnet_ids = var.subnet_ids
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-superset-db-subnet-group"
+    Name = "${var.project_name}-${var.environment}-airflow-db-subnet-group"
   })
 }
 
 # DB Parameter Group for PostgreSQL optimization
-resource "aws_db_parameter_group" "superset" {
-  name   = "${var.project_name}-${var.environment}-superset-params"
+resource "aws_db_parameter_group" "airflow" {
+  name   = "${var.project_name}-${var.environment}-airflow-params"
   family = var.db_parameter_group_family
 
   # Optimize for small instance performance
@@ -81,7 +81,7 @@ resource "aws_db_parameter_group" "superset" {
 }
 
 # RDS Instance
-resource "aws_db_instance" "superset" {
+resource "aws_db_instance" "airflow" {
   #checkov:skip=CKV_AWS_17:RDS in public subnet for cost optimization
   #checkov:skip=CKV_AWS_293:Deletion protection variable-based
   #checkov:skip=CKV_AWS_353:Performance Insights variable-based
@@ -89,7 +89,7 @@ resource "aws_db_instance" "superset" {
   #checkov:skip=CKV_AWS_118:Enhanced monitoring enabled (checkov false positive)
   #checkov:skip=CKV_AWS_161:IAM authentication enabled (checkov false positive)
   #checkov:skip=CKV2_AWS_69:SSL enforced via AWS system defaults (rds.force_ssl=1)
-  identifier = "${var.project_name}-${var.environment}-superset-metadata"
+  identifier = "${var.project_name}-${var.environment}-airflow-metadata"
 
   # Engine configuration
   engine         = "postgres"
@@ -109,7 +109,7 @@ resource "aws_db_instance" "superset" {
   port     = 5432
 
   # Network configuration
-  db_subnet_group_name   = aws_db_subnet_group.superset.name
+  db_subnet_group_name   = aws_db_subnet_group.airflow.name
   vpc_security_group_ids = [var.security_group_id]
   publicly_accessible    = var.publicly_accessible
 
@@ -126,19 +126,19 @@ resource "aws_db_instance" "superset" {
   multi_az                  = var.multi_az
   deletion_protection       = var.deletion_protection
   skip_final_snapshot       = var.skip_final_snapshot
-  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-superset-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-airflow-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
   # Performance and monitoring
   performance_insights_enabled = var.enable_performance_insights
   monitoring_interval          = var.enable_enhanced_monitoring ? 60 : 0
   monitoring_role_arn          = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring.arn : null
-  parameter_group_name         = aws_db_parameter_group.superset.name
+  parameter_group_name         = aws_db_parameter_group.airflow.name
   copy_tags_to_snapshot        = true
   auto_minor_version_upgrade   = true
   apply_immediately            = var.apply_immediately
 
   tags = merge(var.tags, {
-    Name = "${var.project_name}-${var.environment}-superset-rds"
+    Name = "${var.project_name}-${var.environment}-airflow-rds"
   })
 
   lifecycle {
@@ -151,7 +151,7 @@ resource "aws_db_instance" "superset" {
 
 # CloudWatch alarms for monitoring
 resource "aws_cloudwatch_metric_alarm" "database_cpu" {
-  alarm_name          = "${var.project_name}-${var.environment}-superset-db-cpu"
+  alarm_name          = "${var.project_name}-${var.environment}-airflow-db-cpu"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -163,14 +163,14 @@ resource "aws_cloudwatch_metric_alarm" "database_cpu" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.superset.id
+    DBInstanceIdentifier = aws_db_instance.airflow.id
   }
 
   tags = var.tags
 }
 
 resource "aws_cloudwatch_metric_alarm" "database_storage" {
-  alarm_name          = "${var.project_name}-${var.environment}-superset-db-storage"
+  alarm_name          = "${var.project_name}-${var.environment}-airflow-db-storage"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "FreeStorageSpace"
@@ -182,14 +182,14 @@ resource "aws_cloudwatch_metric_alarm" "database_storage" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.superset.id
+    DBInstanceIdentifier = aws_db_instance.airflow.id
   }
 
   tags = var.tags
 }
 
 resource "aws_cloudwatch_metric_alarm" "database_memory" {
-  alarm_name          = "${var.project_name}-${var.environment}-superset-db-memory"
+  alarm_name          = "${var.project_name}-${var.environment}-airflow-db-memory"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "FreeableMemory"
@@ -201,14 +201,14 @@ resource "aws_cloudwatch_metric_alarm" "database_memory" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.superset.id
+    DBInstanceIdentifier = aws_db_instance.airflow.id
   }
 
   tags = var.tags
 }
 
 resource "aws_cloudwatch_metric_alarm" "database_connections" {
-  alarm_name          = "${var.project_name}-${var.environment}-superset-db-connections"
+  alarm_name          = "${var.project_name}-${var.environment}-airflow-db-connections"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "DatabaseConnections"
@@ -220,7 +220,7 @@ resource "aws_cloudwatch_metric_alarm" "database_connections" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.superset.id
+    DBInstanceIdentifier = aws_db_instance.airflow.id
   }
 
   tags = var.tags
