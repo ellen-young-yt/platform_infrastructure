@@ -145,6 +145,7 @@ resource "aws_db_instance" "airflow" {
     ignore_changes = [
       final_snapshot_identifier,
       engine_version, # Allow AWS auto-upgrades without Terraform interference
+      password,       # Ignore password drift from snapshot restores and manual changes
     ]
   }
 }
